@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-02-09 16:22:07 by Eclipse SUMO netedit Version 1.18.0
+-->
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="vtypeauto" accel="2.5" decel="8" sigma="0.5" length="4"
+           minGap="0" maxSpeed="1000" color="1,0,0" probability="1"
+           carFollowModel="CC" tauEngine="0.5" omegaN="0.2" xi="1" c1="0.5"
+           lanesCount="4" ccAccel="1.5" ploegKp="0.2" ploegKd="0.7"
+           ploegH="0.5" speedFactor="2"
+           lcStrategic="10" lcCooperative="10" lcSpeedGain="10" lcKeepRight="10"/>
+    <vType id="passenger" accel="1.5" decel="4.5" sigma="0.5" length="4"
+           minGap="2.5" maxSpeed="36.11" color="0.16,0.33,0.42" vClass="passenger"
+           guiShape="passenger" speedFactor="1"
+           carFollowModel="IDM" />
+    <vType id="passenger2" accel="1.5" decel="4.5" sigma="0.5" length="4"
+           minGap="2.5" maxSpeed="15" color="0.16,0.33,0.42" vClass="passenger"
+           guiShape="passenger" speedFactor="1"
+           carFollowModel="IDM" />
+</routes>

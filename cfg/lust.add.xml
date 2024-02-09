@@ -1,0 +1,13 @@
+<additionals>
+    <route id="platoon_route" edges="-32270#3 --30892#15 --30892#14 --30892#13 --30892#12 --30418#6 --30842#4 --30842#3 --30842#2 --30842#1 -32270#3"/>
+    <rerouter id="rerouter_0" edges="--30418#6">
+        <interval end="1e9">
+           <destProbReroute id="-32270#3"/>
+        </interval>
+    </rerouter>
+    <rerouter id="rerouter_1" edges="-32270#3">
+        <interval end="1e9">
+           <destProbReroute id="--30418#6"/>
+        </interval>
+    </rerouter>
+</additionals>
