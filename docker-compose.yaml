@@ -1,0 +1,19 @@
+version: "3.0"
+services:
+  colossesumo:
+    container_name: colossesumo
+    build: .
+    environment:
+      - DISPLAY
+    networks:
+      - mqttnet
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./cfg:/cfg
+    devices:
+     - /dev/dri
+
+networks:
+  mqttnet:
+    name: mqttnet
+    external: true

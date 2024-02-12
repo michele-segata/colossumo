@@ -1,5 +1,4 @@
-ColosSeUMO
-===
+# ColosSeUMO
 
 This application enables running vehicular networking simulations on the Colosseum testbed, enabling to simulate
 mobility through SUMO.
@@ -11,9 +10,10 @@ receive data from Colosseum as well, for example, the content of a packet receiv
 To run ColosSeMO you need to have a running MQTT broker to connect to.
 One example is `mosquitto`, which can easily be installed on Linux and macOS systems using one of the following
 commands depending on your system:
-* ``sudo apt install mosquitto``
-* ``sudo port install mosquitto``
-* ``sudo brew install mosquitto``
+
+- `sudo apt install mosquitto`
+- `sudo port install mosquitto`
+- `sudo brew install mosquitto`
 
 You then need a working copy of SUMO (preferably version 1.18.0).
 Follow the [online instructions](https://sumo.dlr.de/docs/Downloads.php) on the official website.
@@ -30,20 +30,43 @@ Simply follow the instructions on the [github repository](https://github.com/mic
 The sample scenario comprises 4 vehicles travelling in a platoon at constant speed.
 To run such scenario, start the broker first.
 If you use mosquitto, to start it on port 12345 run:
+
 ```commandline
 mosquitto -p 12345
 ```
+
 To start the sample scenario simply type:
+
 ```commandline
 python colosseumo.py --broker 127.0.0.1 --port 12345 --config cfg/freeway.sumo.cfg --scenario cacc_scenario.CaccScenario --nodes 10 --time 60
 ```
+
 The script parameters are the following:
-* `--broker`: IP of the broker
-* `--port`: port of the broker
-* `--config`: SUMO config file
-* `--scenario`: python source file implementing the scenario (e.g., adding vehicles and configuring them)
-* `--nodes`: how many nodes are available in Colosseum for the simulation
-* `--time`: maximum simulation time in seconds
+
+- `--broker`: IP of the broker
+- `--port`: port of the broker
+- `--config`: SUMO config file
+- `--scenario`: python source file implementing the scenario (e.g., adding vehicles and configuring them)
+- `--nodes`: how many nodes are available in Colosseum for the simulation
+- `--time`: maximum simulation time in seconds
+
+## Running using docker
+
+A dockerfile and a docker-compose.yml file are provided to run the ColosseSUMO in a container. However, since SUMO is a gui application some tricks have to be implemented. See [this post](http://wiki.ros.org/docker/Tutorials/GUI)
+
+First of all, run the local dynscen server which cointains the mqtt broker.
+
+Then, enable local access to the X11 server by doing
+
+`xhost +local:root`
+
+Run the ColosseSUMO docker compose file
+
+`docker compose up`
+
+Finally, once you have finished using it restore the X11 auth config
+
+`xhost -local:root`
 
 ## Working principle
 
@@ -52,6 +75,7 @@ Such updates include the current simulation time, the position of the nodes, etc
 Updates are handled through messages, which are published via MQTT in json format.
 A single update is an array of messages.
 For example, ColosSeUMO can send the following update to Colosseum:
+
 ```json
 [
   {
@@ -122,12 +146,15 @@ For example, ColosSeUMO can send the following update to Colosseum:
   }
 ]
 ```
+
 The above message tells colosseum:
-* The current simulation time
-* That some new vehicles have entered the simulation and they should be associated to Colosseum nodes with given ids
-* Where the vehicles are located
+
+- The current simulation time
+- That some new vehicles have entered the simulation and they should be associated to Colosseum nodes with given ids
+- Where the vehicles are located
 
 In a classic simulation step, the update might simply be like the following:
+
 ```json
 [
   {
@@ -176,6 +203,7 @@ In a classic simulation step, the update might simply be like the following:
 ### Time updates
 
 Direction: SUMO to Colosseum
+
 ```json
 {
   "type": "time",
@@ -188,6 +216,7 @@ Direction: SUMO to Colosseum
 ### Position updates
 
 Direction: SUMO to Colosseum
+
 ```json
 {
   "type": "update_position",
@@ -202,6 +231,7 @@ Direction: SUMO to Colosseum
 ### New vehicle
 
 Direction: SUMO to Colosseum
+
 ```json
 {
   "type": "new_vehicle",
@@ -215,6 +245,7 @@ Direction: SUMO to Colosseum
 ### Vehicle deletion
 
 Direction: SUMO to Colosseum
+
 ```json
 {
   "type": "delete_vehicle",
@@ -230,6 +261,7 @@ Direction: SUMO to Colosseum
 Direction: SUMO to Colosseum (colosseum node requesting SUMO own data to be sent)
 
 Direction: Colosseum to SUMO (colosseum informing about reception of a packet)
+
 ```json
 {
   "type": "vehicle_data",

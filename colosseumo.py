@@ -24,7 +24,7 @@ from importlib import import_module
 from logging import error, debug, DEBUG, basicConfig
 from time import sleep
 
-from paho.mqtt.client import Client
+import paho.mqtt.client as mqtt
 from plexe import Plexe
 from traci.constants import TRACI_ID_LIST, VAR_POSITION
 
@@ -66,8 +66,7 @@ class Colosseumo:
         self.available_nodes = set(available_nodes)
         # map from sumo vehicle id to colosseum node id
         self.vehicle_to_node = Bidict()
-
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
             self.connected = True
             debug("Connected to MQTT Broker!")
@@ -75,8 +74,8 @@ class Colosseumo:
             error("Failed to connect, return code %d\n", rc)
 
     def connect_mqtt(self):
-        client = Client(self.client_id)
-        # client.username_pw_set(username, password)
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.client_id)
+        client.username_pw_set("user", "pwd")
         client.on_connect = self.on_connect
         client.connect(self.broker, self.port)
         client.loop_start()
@@ -137,7 +136,7 @@ class Colosseumo:
     def run_simulation(self, max_time):
         # used to randomly color the vehicles
         random.seed(1)
-        start_sumo(self.config, False)
+        start_sumo(self.config, False), 
         plexe = Plexe()
         traci.addStepListener(plexe)
         step = 0
@@ -252,7 +251,7 @@ def main():
     parser.add_argument("--config", help="SUMO config file")
     parser.add_argument("--scenario", help="Python scenario to instantiate", default="scenario.Scenario")
     parser.add_argument("--nodes", help="Number of available nodes in colosseum", default=32, type=int)
-    parser.add_argument("--time", help="Maximum simulation time in seconds", default=60)
+    parser.add_argument("--time", help="Maximum simulation time in seconds", default=60, type=int)
     args = parser.parse_args()
     module, class_name = args.scenario.rsplit(".", 1)
     m = import_module(module)
