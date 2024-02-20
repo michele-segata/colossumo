@@ -168,9 +168,6 @@ class VehicleDataMessage(Message):
     def __init__(self):
         super().__init__()
 
-    def init_type(self):
-        self.type = "update_position"
-
     def from_object(self):
         self.sumo_id = self.content["sumo_id"]
         self.controller_acceleration = self.content["controller_acceleration"]
