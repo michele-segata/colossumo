@@ -94,54 +94,42 @@ For example, ColosSeUMO can send the following update to Colosseum:
   {
     "type": "new_vehicle",
     "content": {
-      "sumo_id": "p.2",
+      "sumo_id": "p.1",
       "colosseum_id": 1
     }
   },
   {
     "type": "new_vehicle",
     "content": {
-      "sumo_id": "p.3",
+      "sumo_id": "p.2",
       "colosseum_id": 2
-    }
-  },
-  {
-    "type": "new_vehicle",
-    "content": {
-      "sumo_id": "p.1",
-      "colosseum_id": 3
     }
   },
   {
     "type": "update_position",
     "content": {
       "colosseum_id": 0,
-      "x": 99.99999999999999,
-      "y": 242.45
+      "x": 291839.0101711491,
+      "y": 5498295.976479217,
+      "crs": "EPSG:32632"
     }
   },
   {
     "type": "update_position",
     "content": {
       "colosseum_id": 1,
-      "x": 82,
-      "y": 242.45
+      "x": 291830.67911980435,
+      "y": 5498299.379535452,
+      "crs": "EPSG:32632"
     }
   },
   {
     "type": "update_position",
     "content": {
       "colosseum_id": 2,
-      "x": 73,
-      "y": 242.45
-    }
-  },
-  {
-    "type": "update_position",
-    "content": {
-      "colosseum_id": 3,
-      "x": 91,
-      "y": 242.45
+      "x": 291822.34806845966,
+      "y": 5498302.782591687,
+      "crs": "EPSG:32632"
     }
   }
 ]
@@ -167,32 +155,27 @@ In a classic simulation step, the update might simply be like the following:
     "type": "update_position",
     "content": {
       "colosseum_id": 0,
-      "x": 100.25,
-      "y": 242.45
+      "x": 291839.19530562346,
+      "y": 5498295.900855745,
+      "crs": "EPSG:32632"
     }
   },
   {
     "type": "update_position",
     "content": {
       "colosseum_id": 1,
-      "x": 82.25,
-      "y": 242.45
+      "x": 291830.8642542787,
+      "y": 5498299.30391198,
+      "crs": "EPSG:32632"
     }
   },
   {
     "type": "update_position",
     "content": {
       "colosseum_id": 2,
-      "x": 73.25,
-      "y": 242.45
-    }
-  },
-  {
-    "type": "update_position",
-    "content": {
-      "colosseum_id": 3,
-      "x": 91.24999999999999,
-      "y": 242.45
+      "x": 291822.53320293396,
+      "y": 5498302.706968215,
+      "crs": "EPSG:32632"
     }
   }
 ]
@@ -223,7 +206,8 @@ Direction: SUMO to Colosseum
   "content": {
     "colosseum_id": "<colosseum node id>: int",
     "x": "<x coordinate, m>: float",
-    "y": "<y coordinate, m>: float"
+    "y": "<y coordinate, m>: float",
+    "crs": "<coordinate reference system, if present>: string"
   }
 }
 ```

@@ -124,13 +124,14 @@ class DeleteVehicleMessage(NewVehicleMessage):
 class PositionUpdateMessage(Message):
     """ Message to be sent to colosseum to notify about the change in position of a vehicle
     """
-    def __init__(self, colosseum_id=None, x=None, y=None):
+    def __init__(self, colosseum_id=None, x=None, y=None, crs=""):
         super().__init__()
         self.type = "update_position"
         self.colosseum_id = colosseum_id
         self.x = x
         self.y = y
-        self.content = {"colosseum_id": self.colosseum_id, "x": self.x, "y": self.y}
+        self.crs = crs
+        self.content = {"colosseum_id": self.colosseum_id, "x": self.x, "y": self.y, "crs": self.crs}
         self.keys = self.content.keys()
 
     def from_object(self):

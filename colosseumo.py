@@ -22,8 +22,11 @@ import sys
 from argparse import ArgumentParser
 from importlib import import_module
 from logging import error, debug, DEBUG, basicConfig
+from os.path import split, join
 from time import sleep
+from pyproj.crs.crs import CRS
 
+from libxml2 import parseFile
 import paho.mqtt.client as mqtt
 from plexe import Plexe
 from traci.constants import TRACI_ID_LIST, VAR_POSITION
@@ -66,6 +69,10 @@ class Colosseumo:
         self.available_nodes = set(available_nodes)
         # map from sumo vehicle id to colosseum node id
         self.vehicle_to_node = Bidict()
+        # whether to use geo coordinates or simple x-y coordinates (in absence of geo reference)
+        self.use_geo_coord = False
+        # CRS code for coordinate projection
+        self.crs = None
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
             self.connected = True
@@ -133,7 +140,28 @@ class Colosseumo:
         else:
             return inv_map[colosseum_node_id]
 
+    def compute_coordinate_system(self):
+        sumo_cfg_doc = parseFile(self.config)
+        context = sumo_cfg_doc.xpathNewContext()
+        # get sumo net file
+        net_file = context.xpathEval("string(//configuration/input/net-file/@value)")
+        if net_file == "":
+            return False
+        config_folder, _ = split(self.config)
+        sumo_net_doc = parseFile(join(config_folder, net_file))
+        context = sumo_net_doc.xpathNewContext()
+        # get coordinate system if present
+        coordinate_system = context.xpathEval("string(//net/location/@projParameter)")
+        if coordinate_system == "" or coordinate_system == "!":
+            return False
+        # load coordinate reference system
+        crs = CRS.from_string(coordinate_system)
+        self.crs = ":".join(crs.to_authority())
+        self.use_geo_coord = True
+        return True
+
     def run_simulation(self, max_time):
+        self.compute_coordinate_system()
         # used to randomly color the vehicles
         random.seed(1)
         start_sumo(self.config, False), 
@@ -205,10 +233,17 @@ class Colosseumo:
                         error("SUMO vehicle {} is not associated to any node in colosseum".format(sumo_vehicle))
                     else:
                         x, y = subscriptions[sumo_vehicle][VAR_POSITION]
-                        m = PositionUpdateMessage(colosseum_node, x, y)
+                        if self.use_geo_coord:
+                            x_geo, y_geo = traci.simulation.convertGeo(x, y)
+                            m = PositionUpdateMessage(colosseum_node, x_geo, y_geo, self.crs)
+                            debug("SUMO vehicle {} geo coordinates: x={}, y={} ({})"
+                                  .format(sumo_vehicle, x_geo, y_geo, self.crs))
+                        else:
+                            m = PositionUpdateMessage(colosseum_node, x, y)
+
                         update_msg.add(m)
                         debug("Updating SUMO vehicle {} (colosseum node {}) position (x={}, y={})"
-                              .format(sumo_vehicle, colosseum_node, x, y))
+                              .format(sumo_vehicle, colosseum_node, x, y, self.crs))
 
             self.publish(SUMO_UPDATE_TOPIC, update_msg.to_json())
             debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
