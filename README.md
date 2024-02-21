@@ -67,6 +67,7 @@ Run the ColosseSUMO docker compose file
 Finally, once you have finished using it restore the X11 auth config
 
 `xhost -local:root`
+* `--gui`: start SUMO in gui mode (default false)
 
 ## Working principle
 

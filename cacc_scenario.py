@@ -23,8 +23,8 @@ from utils import add_platooning_vehicle
 
 
 class CaccScenario(Scenario):
-    def __init__(self, traci, plexe):
-        super().__init__(traci, plexe)
+    def __init__(self, traci, plexe, gui):
+        super().__init__(traci, plexe, gui)
         self.add_vehicles(4, 100, 25, 4, 5)
 
     def add_vehicles(self, n, position, speed, length, distance):
@@ -54,5 +54,6 @@ class CaccScenario(Scenario):
                 plexe.set_active_controller(vid, CACC)
                 plexe.enable_auto_feed(vid, True, leader, "p.%d" % (i-1))
                 plexe.add_member(leader, vid, i)
-        traci.gui.trackVehicle("View #0", leader)
-        traci.gui.setZoom("View #0", 50000)
+        if self.gui:
+            traci.gui.trackVehicle("View #0", leader)
+            traci.gui.setZoom("View #0", 50000)

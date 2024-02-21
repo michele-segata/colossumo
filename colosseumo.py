@@ -50,7 +50,7 @@ COLOSSEUM_UPDATE_TOPIC = "colosseum/update"
 
 
 class Colosseumo:
-    def __init__(self, client_id, broker, port, config, scenario, available_nodes):
+    def __init__(self, client_id, broker, port, config, scenario, available_nodes, gui):
         """ Constructor
         :param client_id: client id to be used for MQTT broker
         :param broker: IP of MQTT broker
@@ -58,6 +58,7 @@ class Colosseumo:
         :param config: sumo config file (.cfg)
         :param scenario: python script implementing the scenario (must subclass scenario.py)
         :param available_nodes: list of nodes available in colosseum. TODO: automatically retrieve this list in future
+        :param gui: use SUMO in GUI mode or not
         """
         self.client_id = client_id
         self.broker = broker
@@ -72,6 +73,10 @@ class Colosseumo:
         self.available_nodes = set(available_nodes)
         # map from sumo vehicle id to colosseum node id
         self.vehicle_to_node = Bidict()
+        # use SUMO GUI/CLI mode
+        self.gui = gui
+        # SUMO timestep
+        self.timestep = None
         # whether to use geo coordinates or simple x-y coordinates (in absence of geo reference)
         self.use_geo_coord = False
         # CRS code for coordinate projection
@@ -156,9 +161,13 @@ class Colosseumo:
         else:
             return inv_map[colosseum_node_id]
 
-    def compute_coordinate_system(self):
+    def load_sumo_config(self):
+        """ Retrieve sumo configuration data such as the coordinate reference system and the simulation timestep
+        """
         sumo_cfg_doc = parseFile(self.config)
         context = sumo_cfg_doc.xpathNewContext()
+        # get simulation timestep
+        self.timestep = float(context.xpathEval("string(//configuration/time/step-length/@value)"))
         # get sumo net file
         net_file = context.xpathEval("string(//configuration/input/net-file/@value)")
         if net_file == "":
@@ -177,15 +186,15 @@ class Colosseumo:
         return True
 
     def run_simulation(self, max_time):
-        self.compute_coordinate_system()
+        self.load_sumo_config()
         # used to randomly color the vehicles
         random.seed(1)
-        start_sumo(self.config, False), 
+        start_sumo(self.config, False, self.gui)
         plexe = Plexe()
         traci.addStepListener(plexe)
         step = 0
         current_time = 0
-        scenario = self.scenario(traci, plexe)
+        scenario = self.scenario(traci, plexe, self.gui)
         traci.vehicle.subscribe("", [TRACI_ID_LIST])
         while current_time <= max_time and not self.stop_simulation:
 
@@ -275,6 +284,9 @@ class Colosseumo:
             debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
 
             step += 1
+            if not self.gui:
+                # TODO: here we assume that sumo processing time is 0. needs to be updated in the future
+                sleep(self.timestep)
 
         update_msg = MQTTUpdate()
         for sumo_vehicle in self.vehicle_to_node.keys():
@@ -313,11 +325,16 @@ def main():
     parser.add_argument("--scenario", help="Python scenario to instantiate", default="scenario.Scenario")
     parser.add_argument("--nodes", help="Number of available nodes in colosseum", default=32, type=int)
     parser.add_argument("--time", help="Maximum simulation time in seconds", default=60, type=int)
+    parser.add_argument("--gui", help="Use SUMO in GUI mode", action="store_true", default=False)
     args = parser.parse_args()
     module, class_name = args.scenario.rsplit(".", 1)
     m = import_module(module)
     scenario = getattr(m, class_name)
-    colosseumo = Colosseumo("sumo", args.broker, args.port, args.config, scenario, list(range(args.nodes)))
+    broker = args.broker
+    port = args.port
+    config = args.config
+    gui = args.gui
+    colosseumo = Colosseumo("sumo", broker, port, config, scenario, list(range(args.nodes)), gui)
     colosseumo.connect_mqtt()
     colosseumo.subscribe(COLOSSEUM_UPDATE_TOPIC)
     attempt = 1

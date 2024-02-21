@@ -17,9 +17,10 @@
 
 
 class Scenario:
-    def __init__(self, traci, plexe):
+    def __init__(self, traci, plexe, gui):
         self.traci = traci
         self.plexe = plexe
+        self.gui = gui
 
     def step(self, step_number):
         pass
