@@ -179,3 +179,35 @@ class VehicleDataMessage(Message):
         self.time = self.content["time"]
         self.x = self.content["x"]
         self.y = self.content["y"]
+
+
+class StartSimulationMessage(Message):
+    """ Message sent from colosseum to inform we can start moving the vehicles in SUMO
+    """
+    TYPE = "start_simulation"
+
+    def __init__(self):
+        super().__init__()
+        self.type = StartSimulationMessage.TYPE
+        self.content = {
+        }
+        self.keys = self.content.keys()
+
+    def __init__(self):
+        super().__init__()
+
+
+class StopSimulationMessage(Message):
+    """ Message sent from colosseum to stop the simulation
+    """
+    TYPE = "stop_simulation"
+
+    def __init__(self):
+        super().__init__()
+        self.type = StopSimulationMessage.TYPE
+        self.content = {
+        }
+        self.keys = self.content.keys()
+
+    def __init__(self):
+        super().__init__()

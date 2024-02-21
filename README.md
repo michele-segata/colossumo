@@ -260,3 +260,21 @@ Direction: Colosseum to SUMO (colosseum informing about reception of a packet)
   }
 }
 ```
+
+### Start/stop simulation
+
+Direction: Colosseum to SUMO.
+After creating vehicles in the simulation ColosSeUMO will wait for a signal to start the simulation.
+In addition, Colosseum can tell ColosSeUMO to stop the SUMO simulation.
+```json
+{
+  "type": "start_simulation",
+  "content": {}
+}
+```
+```json
+{
+  "type": "stop_simulation",
+  "content": {}
+}
+```

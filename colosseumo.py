@@ -21,6 +21,7 @@ import random
 import sys
 from argparse import ArgumentParser
 from importlib import import_module
+from json import loads
 from logging import error, debug, DEBUG, basicConfig
 from os.path import split, join
 from time import sleep
@@ -32,7 +33,8 @@ from plexe import Plexe
 from traci.constants import TRACI_ID_LIST, VAR_POSITION
 
 from bidict import Bidict
-from messages import MQTTUpdate, DeleteVehicleMessage, NewVehicleMessage, PositionUpdateMessage, CurrentTimeMessage
+from messages import MQTTUpdate, DeleteVehicleMessage, NewVehicleMessage, PositionUpdateMessage, CurrentTimeMessage, \
+    StartSimulationMessage, StopSimulationMessage
 from utils import start_sumo
 
 if 'SUMO_HOME' in os.environ:
@@ -44,6 +46,7 @@ import traci
 
 
 SUMO_UPDATE_TOPIC = "sumo/update"
+COLOSSEUM_UPDATE_TOPIC = "colosseum/update"
 
 
 class Colosseumo:
@@ -73,6 +76,10 @@ class Colosseumo:
         self.use_geo_coord = False
         # CRS code for coordinate projection
         self.crs = None
+        # waiting colosseum signal to start the simulation
+        self.waiting_for_colosseum = False
+        # signal from colosseum to stop simulation
+        self.stop_simulation = False
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
             self.connected = True
@@ -100,9 +107,18 @@ class Colosseumo:
         return status == 0
 
     def on_message(self, client, userdata, msg):
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+        payload = msg.payload.decode()
+        debug("Received {} from {} topic".format(payload, msg.topic))
         for listener in self.listeners:
             listener(msg)
+        if msg.topic == COLOSSEUM_UPDATE_TOPIC:
+            data = loads(payload)
+            for m in data:
+                if "type" in m.keys():
+                    if m["type"] == StartSimulationMessage.TYPE:
+                        self.waiting_for_colosseum = False
+                    if m["type"] == StopSimulationMessage.TYPE:
+                        self.stop_simulation = True
 
     def subscribe(self, topic):
         self.client.subscribe(topic)
@@ -171,7 +187,12 @@ class Colosseumo:
         current_time = 0
         scenario = self.scenario(traci, plexe)
         traci.vehicle.subscribe("", [TRACI_ID_LIST])
-        while current_time <= max_time:
+        while current_time <= max_time and not self.stop_simulation:
+
+            while self.waiting_for_colosseum:
+                debug("List of vehicles sent to Colosseum. Waiting signal to start simulation...")
+                sleep(1)
+
             update_msg = MQTTUpdate()
             traci.simulationStep()
             scenario.step(step)
@@ -205,6 +226,11 @@ class Colosseumo:
 
             # tell colosseum about new vehicles and the mapping between the vehicle and node
             for sumo_vehicle in new_vehicles:
+                # TODO: currently we assume that all vehicles are created at the beginning of the simulation
+                # this logic needs to be changed in the future if we want to allow vehicles to be created afterwards
+                # Basically if a new vehicle is created, we are at the beginning, so we tell colosseum about them
+                # and then wait for colosseum for the start signal
+                self.waiting_for_colosseum = True
                 colosseum_node = self.assign_free_colosseum_node(sumo_vehicle)
                 if colosseum_node == -1:
                     error("Error: no available free node in colosseum for SUMO vehicle (id={}) ".format(sumo_vehicle))
@@ -293,6 +319,7 @@ def main():
     scenario = getattr(m, class_name)
     colosseumo = Colosseumo("sumo", args.broker, args.port, args.config, scenario, list(range(args.nodes)))
     colosseumo.connect_mqtt()
+    colosseumo.subscribe(COLOSSEUM_UPDATE_TOPIC)
     attempt = 1
     while not colosseumo.is_connected() and attempt <= 10:
         debug("Waiting to be connected to MQTT broker. Attempt {}".format(attempt))
