@@ -190,9 +190,6 @@ class StartSimulationMessage(Message):
         }
         self.keys = self.content.keys()
 
-    def __init__(self):
-        super().__init__()
-
 
 class StopSimulationMessage(Message):
     """ Message sent from colosseum to stop the simulation
@@ -205,6 +202,3 @@ class StopSimulationMessage(Message):
         self.content = {
         }
         self.keys = self.content.keys()
-
-    def __init__(self):
-        super().__init__()
