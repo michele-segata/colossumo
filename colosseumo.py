@@ -35,6 +35,7 @@ from traci.constants import TRACI_ID_LIST, VAR_POSITION
 from bidict import Bidict
 from messages import MQTTUpdate, DeleteVehicleMessage, NewVehicleMessage, PositionUpdateMessage, CurrentTimeMessage, \
     StartSimulationMessage, StopSimulationMessage
+from mqtt_client import MQTTClient
 from utils import start_sumo
 
 if 'SUMO_HOME' in os.environ:
@@ -49,7 +50,7 @@ SUMO_UPDATE_TOPIC = "sumo/update"
 COLOSSEUM_UPDATE_TOPIC = "colosseum/update"
 
 
-class Colosseumo:
+class Colosseumo(MQTTClient):
     def __init__(self, client_id, broker, port, config, scenario, available_nodes, gui):
         """ Constructor
         :param client_id: client id to be used for MQTT broker
@@ -60,11 +61,7 @@ class Colosseumo:
         :param available_nodes: list of nodes available in colosseum. TODO: automatically retrieve this list in future
         :param gui: use SUMO in GUI mode or not
         """
-        self.client_id = client_id
-        self.broker = broker
-        self.port = port
-        self.connected = False
-        self.client = None
+        super().__init__(client_id, broker, port)
         self.listeners = []
         self.config = config
         self.scenario = scenario
@@ -85,31 +82,6 @@ class Colosseumo:
         self.waiting_for_colosseum = False
         # signal from colosseum to stop simulation
         self.stop_simulation = False
-    def on_connect(self, client, userdata, flags, rc, properties):
-        if rc == 0:
-            self.connected = True
-            debug("Connected to MQTT Broker!")
-        else:
-            error("Failed to connect, return code %d\n", rc)
-
-    def connect_mqtt(self):
-        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.client_id)
-        client.username_pw_set("user", "pwd")
-        client.on_connect = self.on_connect
-        client.connect(self.broker, self.port)
-        client.loop_start()
-        self.client = client
-
-    def disconnect_mqtt(self):
-        if self.connected:
-            self.client.loop_stop()
-            self.client.disconnect()
-
-    def publish(self, topic, data):
-        result = self.client.publish(topic, data)
-        # result: [0, 1]
-        status = result[0]
-        return status == 0
 
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
@@ -124,10 +96,6 @@ class Colosseumo:
                         self.waiting_for_colosseum = False
                     if m["type"] == StopSimulationMessage.TYPE:
                         self.stop_simulation = True
-
-    def subscribe(self, topic):
-        self.client.subscribe(topic)
-        self.client.on_message = self.on_message
 
     def add_listener(self, listener):
         self.listeners.append(listener)
@@ -310,9 +278,6 @@ class Colosseumo:
         old_vehicles = self.sumo_vehicles.difference(set(sumo_vehicles))
         self.sumo_vehicles = set(sumo_vehicles)
         return new_vehicles, old_vehicles
-
-    def is_connected(self):
-        return self.connected
 
 
 def main():
