@@ -38,7 +38,7 @@ mosquitto -p 12345
 To start the sample scenario simply type:
 
 ```commandline
-python colosseumo.py --broker 127.0.0.1 --port 12345 --config cfg/freeway.sumo.cfg --scenario cacc_scenario.CaccScenario --nodes 10 --time 60
+python colosseumo.py --broker 127.0.0.1 --port 12345 --config=cfg/freeway.sumo.cfg --scenario=cacc_scenario.CaccScenario --application=application.Application --gui --params=cfg/sim_params.json --test --nodes 10 --time 60
 ```
 
 The script parameters are the following:
@@ -47,8 +47,28 @@ The script parameters are the following:
 - `--port`: port of the broker
 - `--config`: SUMO config file
 - `--scenario`: python source file implementing the scenario (e.g., adding vehicles and configuring them)
+- `--application`: python source file implementing the application, i.e., what needs to be run on each colosseum node
+- `--gui`: start SUMO in GUI mode
+- `--params`: json file including simulation params, which are passed to the scenario and the application
+- `--test`: enable test mode. In this mode the simulation is run without Colosseum, so applications are instantiated
+locally by ColosSeUMO instead of on Colosseum SRN nodes and communication is fake, emulated via MQTT with a 100%
+delivery ratio
 - `--nodes`: how many nodes are available in Colosseum for the simulation
 - `--time`: maximum simulation time in seconds
+
+## Running a more realistic scenario (without Colosseum)
+
+To run a more realistic scenario but still using test mode (without Colosseum), type
+
+```commandline
+python colosseumo.py --config=cfg/lust.sumo.cfg --scenario=lust_scenario.LustScenario --gui --application=cacc_application.CACCApplication --params=cfg/sim_params.json --test
+```
+
+This scenario simulates a platoon of three vehicles running around the city of Luxembourg.
+The leading vehicle continuously changes speed and vehicles exchange control data (see `cacc_application.py`).
+To see the effect of missing data, change the `beacon_interval` parameter in `cfg/sim_params.json`.
+With 0.1 seconds, the platoon properly maintains inter-vehicle distance.
+By setting it to 1 second, you should visually see some distance errors.
 
 ## Running using docker
 
@@ -89,21 +109,27 @@ For example, ColosSeUMO can send the following update to Colosseum:
     "type": "new_vehicle",
     "content": {
       "sumo_id": "p.0",
-      "colosseum_id": 0
+      "colosseum_id": 0,
+      "application": "cacc_application.CACCApplication",
+      "parameters": "<json string>"
     }
   },
   {
     "type": "new_vehicle",
     "content": {
       "sumo_id": "p.1",
-      "colosseum_id": 1
+      "colosseum_id": 1,
+      "application": "cacc_application.CACCApplication",
+      "parameters": "<json string>"
     }
   },
   {
     "type": "new_vehicle",
     "content": {
       "sumo_id": "p.2",
-      "colosseum_id": 2
+      "colosseum_id": 2,
+      "application": "cacc_application.CACCApplication",
+      "parameters": "<json string>"
     }
   },
   {
@@ -139,7 +165,8 @@ For example, ColosSeUMO can send the following update to Colosseum:
 The above message tells colosseum:
 
 - The current simulation time
-- That some new vehicles have entered the simulation and they should be associated to Colosseum nodes with given ids
+- That some new vehicles have entered the simulation, that they should be associated to Colosseum nodes with given ids,
+which application should be run, and what are simulation parameters
 - Where the vehicles are located
 
 In a classic simulation step, the update might simply be like the following:
@@ -222,7 +249,9 @@ Direction: SUMO to Colosseum
   "type": "new_vehicle",
   "content": {
     "sumo_id": "<id of vehicle in sumo>: string",
-    "colosseum_id": "<id of colosseum node assigned>: int"
+    "colosseum_id": "<id of colosseum node assigned>: int",
+    "application": "<package.ClassName of application to be run>: string",
+    "parameters": "<application parameters in json format>: string"
   }
 }
 ```
@@ -257,7 +286,8 @@ Direction: Colosseum to SUMO (colosseum informing about reception of a packet)
     "speed": "<vehicle speed, m/s>: float",
     "time": "<simulation time at which data was measured, s>: float",
     "x": "<x coordinate, m>: float",
-    "y": "<y coordinate, m>: float"
+    "y": "<y coordinate, m>: float",
+    "sender": "<sumo id of the sending vehicle, if this is used as a packet>: string"
   }
 }
 ```
@@ -277,5 +307,38 @@ In addition, Colosseum can tell ColosSeUMO to stop the SUMO simulation.
 {
   "type": "stop_simulation",
   "content": {}
+}
+```
+
+### API call message
+
+Direction: Application to SUMO.
+This is used by applications to invoke a SUMO/Plexe API, e.g., to obtain data about a vehicle or change its behavior.
+API calls are sent via MQTT, and they are synchronously managed using semaphores.
+```json
+{
+  "type": "api_call",
+  "content": {
+    "sumo_id": "<id of the vehicle calling the api>: string",
+    "api_code": "<id of the api>: string",
+    "transaction_id": "<id of the call, to identify the answer>: int",
+    "parameters": "<parameters to be passed to the api. content is api dependent>: string"
+  }
+}
+```
+
+### API response message
+
+Direction: SUMO to application.
+This is used to send the result of an API call to the caller.
+```json
+{
+  "type": "api_return",
+  "content": {
+    "sumo_id": "<id of the vehicle calling the api>: string",
+    "api_code": "<id of the api>: string",
+    "transaction_id": "<id of the call, to identify the answer>: int",
+    "response": "<return value of the call. content is api dependent>: string"
+  }
 }
 ```
