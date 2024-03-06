@@ -78,7 +78,7 @@ class Application(MQTTClient):
         self.threads.append(thread)
         thread.start()
 
-    def stop_threads(self):
+    def join_threads(self):
         for thread in self.threads:
             thread.join()
 
@@ -98,7 +98,7 @@ class Application(MQTTClient):
     def stop_application(self):
         self.run = False
         self.on_stop_application()
-        self.stop_threads()
+        self.join_threads()
         self.client.disconnect()
 
     def transmit(self, destination, packet):
