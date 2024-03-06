@@ -29,12 +29,10 @@ class MQTTClient:
         self.client_id = client_id
         self.broker = broker
         self.port = port
-        self.connected = False
         self.client = None
 
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
-            self.connected = True
             debug("Connected to MQTT Broker!")
         else:
             error("Failed to connect, return code %d\n", rc)
@@ -48,7 +46,7 @@ class MQTTClient:
         client.loop_start()
 
     def disconnect_mqtt(self):
-        if self.connected:
+        if self.is_connected():
             self.client.loop_stop()
             self.client.disconnect()
 
@@ -67,4 +65,4 @@ class MQTTClient:
         self.client.on_message = self.on_message
 
     def is_connected(self):
-        return self.connected
+        return self.client.is_connected()
