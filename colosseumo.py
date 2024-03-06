@@ -351,7 +351,7 @@ def main():
     parser.add_argument("--port", help="Port of the broker", default=12345, type=int)
     parser.add_argument("--config", help="SUMO config file")
     parser.add_argument("--scenario", help="Python scenario to instantiate", default="scenario.Scenario")
-    parser.add_argument("--application", help="Python application each node should run", default="")
+    parser.add_argument("--application", help="Python application each node should run", default="application.Application")
     parser.add_argument("--params", help="File JSON with simulation parameters passed to scenario and application", default="")
     parser.add_argument("--nodes", help="Number of available nodes in colosseum", default=32, type=int)
     parser.add_argument("--time", help="Maximum simulation time in seconds", default=60, type=int)
