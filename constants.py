@@ -14,18 +14,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
-from json import loads
 
+# topic used to send SUMO updates to colosseum
+SUMO_UPDATE_TOPIC = "sumo/update"
+# topic used to send commands to SUMO from colosseum
+COLOSSEUM_UPDATE_TOPIC = "colosseum/update"
+# MQTT topics used to send/receive data to/from SUMO
+TOPIC_API_PREFIX = "apicall"
+TOPIC_API_CALL = f"{TOPIC_API_PREFIX}/{{sumo_id}}"
+TOPIC_API_RESPONSE = "apiresponse/{sumo_id}"
+# MQTT topic used to send data directly to other vehicles without using the communication stack
+TOPIC_DIRECT_COMM = "directcomm/{sumo_id}"
 
-class Scenario:
-    def __init__(self, traci, plexe, gui, sim_parameters):
-        self.traci = traci
-        self.plexe = plexe
-        self.gui = gui
-        self.parameters = loads(sim_parameters)
-
-    def step(self, step_number):
-        pass
-
-    def finish(self):
-        pass

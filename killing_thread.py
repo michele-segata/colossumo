@@ -14,18 +14,17 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
-from json import loads
+import traceback
+from os import _exit
+from sys import stderr
+from threading import Thread
 
 
-class Scenario:
-    def __init__(self, traci, plexe, gui, sim_parameters):
-        self.traci = traci
-        self.plexe = plexe
-        self.gui = gui
-        self.parameters = loads(sim_parameters)
-
-    def step(self, step_number):
-        pass
-
-    def finish(self):
-        pass
+class KillingThread(Thread):
+    def run(self):
+        try:
+            super(KillingThread, self).run()
+        except Exception as e:
+            print(traceback.format_exc())
+            print("Exeption in thread:", e, file=stderr)
+            _exit(1)

@@ -24,15 +24,21 @@ from importlib import import_module
 from json import loads
 from logging import error, debug, DEBUG, basicConfig
 from os.path import split, join
+from threading import Thread
 from time import sleep
 from pyproj.crs.crs import CRS
 
 from libxml2 import parseFile
 import paho.mqtt.client as mqtt
 from plexe import Plexe
+from traci import TraCIException, FatalTraCIError
 from traci.constants import TRACI_ID_LIST, VAR_POSITION
 
+from api_interpreter import APIInterpreter
+from application import Application
 from bidict import Bidict
+from constants import COLOSSEUM_UPDATE_TOPIC, SUMO_UPDATE_TOPIC, TOPIC_API_CALL, TOPIC_API_PREFIX
+from killing_thread import KillingThread
 from messages import MQTTUpdate, DeleteVehicleMessage, NewVehicleMessage, PositionUpdateMessage, CurrentTimeMessage, \
     StartSimulationMessage, StopSimulationMessage
 from mqtt_client import MQTTClient
@@ -46,25 +52,30 @@ else:
 import traci
 
 
-SUMO_UPDATE_TOPIC = "sumo/update"
-COLOSSEUM_UPDATE_TOPIC = "colosseum/update"
-
-
 class Colosseumo(MQTTClient):
-    def __init__(self, client_id, broker, port, config, scenario, available_nodes, gui):
+    def __init__(self, client_id, broker, port, config, scenario, application, parameters, available_nodes, gui, test):
         """ Constructor
         :param client_id: client id to be used for MQTT broker
         :param broker: IP of MQTT broker
         :param port: port of MQTT broker
         :param config: sumo config file (.cfg)
         :param scenario: python script implementing the scenario (must subclass scenario.py)
+        :param application: python application that each node should instantiate on top of the radio interface. If
+        Colosseum is used, then this parameter should be a string indicating the class to instantiate, otherwise
+        an instantiable python class inheriting from Application
+        :param parameters: json string with simulation parameters
         :param available_nodes: list of nodes available in colosseum. TODO: automatically retrieve this list in future
         :param gui: use SUMO in GUI mode or not
+        :param test: Boolean: in test mode, Colosseum is not used and communication is handled by Colosseumo
         """
         super().__init__(client_id, broker, port)
         self.listeners = []
         self.config = config
         self.scenario = scenario
+        self.application = application
+        self.sim_parameters = parameters
+        self.applications = dict()
+        self.applications_to_start = []
         self.sumo_vehicles = set()
         # list of available node ids in colosseum
         self.available_nodes = set(available_nodes)
@@ -72,6 +83,8 @@ class Colosseumo(MQTTClient):
         self.vehicle_to_node = Bidict()
         # use SUMO GUI/CLI mode
         self.gui = gui
+        # enable/disable test mode (w/o or w/ colosseun)
+        self.test_mode = test
         # SUMO timestep
         self.timestep = None
         # whether to use geo coordinates or simple x-y coordinates (in absence of geo reference)
@@ -82,6 +95,8 @@ class Colosseumo(MQTTClient):
         self.waiting_for_colosseum = False
         # signal from colosseum to stop simulation
         self.stop_simulation = False
+        # API interpreter utility
+        self.api_interpreter = None
 
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
@@ -96,6 +111,10 @@ class Colosseumo(MQTTClient):
                         self.waiting_for_colosseum = False
                     if m["type"] == StopSimulationMessage.TYPE:
                         self.stop_simulation = True
+        if msg.topic.startswith(TOPIC_API_PREFIX):
+            response_topic, result = self.api_interpreter.serve_api_call(msg.topic, payload)
+            if result is not None:
+                self.publish(response_topic, result.to_json())
 
     def add_listener(self, listener):
         self.listeners.append(listener)
@@ -153,6 +172,83 @@ class Colosseumo(MQTTClient):
         self.use_geo_coord = True
         return True
 
+    def process_new_vehicles(self, new_vehicles, update_msg):
+        # tell colosseum about new vehicles and the mapping between the vehicle and node
+        for sumo_vehicle in new_vehicles:
+            # TODO: currently we assume that all vehicles are created at the beginning of the simulation
+            # this logic needs to be changed in the future if we want to allow vehicles to be created afterwards
+            # Basically if a new vehicle is created, we are at the beginning, so we tell colosseum about them
+            # and then wait for colosseum for the start signal
+            if not self.test_mode:
+                self.waiting_for_colosseum = True
+            colosseum_node = self.assign_free_colosseum_node(sumo_vehicle)
+            if colosseum_node == -1:
+                error("Error: no available free node in colosseum for SUMO vehicle (id={}) ".format(sumo_vehicle))
+            else:
+                application = None if self.test_mode else self.application
+                parameters = None if self.test_mode else self.sim_parameters
+                m = NewVehicleMessage(sumo_vehicle, colosseum_node, application, parameters)
+                update_msg.add(m)
+
+                # get info about vehicle at each time step
+                traci.vehicle.subscribe(sumo_vehicle, [VAR_POSITION])
+
+                # subscribe to MQTT topic to receive API calls from the vehicle
+                self.subscribe(TOPIC_API_CALL.format(sumo_id=sumo_vehicle))
+
+                if self.test_mode:
+                    app = self.application(sumo_vehicle, self.broker, self.port, sumo_vehicle, colosseum_node,
+                                           self.sim_parameters, self.test_mode)
+                    self.applications[sumo_vehicle] = app
+                    # don't start the application, we might need to wait for colosseum to give us green light
+                    self.applications_to_start.append(app)
+                debug("Adding new SUMO vehicle {} to simulation and assigning it to colosseum node {}"
+                      .format(sumo_vehicle, colosseum_node))
+
+    def process_old_vehicles(self, old_vehicles, update_msg):
+        # tell colosseum about all vehicles to be removed, releasing testbed nodes
+        for sumo_vehicle in old_vehicles:
+            colosseum_node = self.get_colosseum_node(sumo_vehicle)
+            if colosseum_node == -1:
+                error("Error: removed vehicle from SUMO (id={}) not currently registered".format(sumo_vehicle))
+            else:
+                # don't get updates anymore
+                traci.vehicle.unsubscribe(sumo_vehicle)
+
+                self.release_colosseum_node(sumo_vehicle)
+                m = DeleteVehicleMessage(sumo_vehicle, colosseum_node)
+                update_msg.add(m)
+                if self.test_mode:
+                    # if we are in test mode, colosseumo instantiated application classes itself
+                    # it also needs to kill them
+                    app = self.applications[sumo_vehicle]
+                    app.stop_application()
+                    del self.applications[sumo_vehicle]
+                debug("Removing SUMO vehicle {} from simulation and releasing colosseum node {}"
+                      .format(sumo_vehicle, colosseum_node))
+
+    def process_subscriptions(self, subscriptions, update_msg):
+        for sumo_vehicle in self.vehicle_to_node.keys():
+            if sumo_vehicle not in subscriptions.keys():
+                error("Vehicle {} not in subscription results".format(sumo_vehicle))
+            else:
+                colosseum_node = self.get_colosseum_node(sumo_vehicle)
+                if colosseum_node == -1:
+                    error("SUMO vehicle {} is not associated to any node in colosseum".format(sumo_vehicle))
+                else:
+                    x, y = subscriptions[sumo_vehicle][VAR_POSITION]
+                    if self.use_geo_coord:
+                        x_geo, y_geo = traci.simulation.convertGeo(x, y)
+                        m = PositionUpdateMessage(colosseum_node, x_geo, y_geo, self.crs)
+                        debug("SUMO vehicle {} geo coordinates: x={}, y={} ({})"
+                              .format(sumo_vehicle, x_geo, y_geo, self.crs))
+                    else:
+                        m = PositionUpdateMessage(colosseum_node, x, y)
+
+                    update_msg.add(m)
+                    debug("Updating SUMO vehicle {} (colosseum node {}) position (x={}, y={})"
+                          .format(sumo_vehicle, colosseum_node, x, y, self.crs))
+
     def run_simulation(self, max_time):
         self.load_sumo_config()
         # used to randomly color the vehicles
@@ -160,9 +256,10 @@ class Colosseumo(MQTTClient):
         start_sumo(self.config, False, self.gui)
         plexe = Plexe()
         traci.addStepListener(plexe)
+        self.api_interpreter = APIInterpreter(traci, plexe)
         step = 0
         current_time = 0
-        scenario = self.scenario(traci, plexe, self.gui)
+        scenario = self.scenario(traci, plexe, self.gui, self.sim_parameters)
         traci.vehicle.subscribe("", [TRACI_ID_LIST])
         while current_time <= max_time and not self.stop_simulation:
 
@@ -170,8 +267,19 @@ class Colosseumo(MQTTClient):
                 debug("List of vehicles sent to Colosseum. Waiting signal to start simulation...")
                 sleep(1)
 
+            for app in self.applications_to_start:
+                debug(f"Starting application for vehicle {app.sumo_id}")
+                app.start_application()
+            self.applications_to_start = []
+
             update_msg = MQTTUpdate()
-            traci.simulationStep()
+            try:
+                traci.simulationStep()
+            except FatalTraCIError:
+                debug("Caught TraCI exception. Closing simulation")
+                self.stop_simulation = True
+                continue
+
             scenario.step(step)
             debug("Running simulation step number {}".format(step))
 
@@ -186,67 +294,9 @@ class Colosseumo(MQTTClient):
             # check for new vehicles or deleted ones
             new_vehicles, old_vehicles = self.update_vehicles(subscriptions[''][TRACI_ID_LIST])
 
-            # tell colosseum about all vehicles to be removed, releasing testbed nodes
-            for sumo_vehicle in old_vehicles:
-                colosseum_node = self.get_colosseum_node(sumo_vehicle)
-                if colosseum_node == -1:
-                    error("Error: removed vehicle from SUMO (id={}) not currently registered".format(sumo_vehicle))
-                else:
-                    # don't get updates anymore
-                    traci.vehicle.unsubscribe(sumo_vehicle)
-
-                    self.release_colosseum_node(sumo_vehicle)
-                    m = DeleteVehicleMessage(sumo_vehicle, colosseum_node)
-                    update_msg.add(m)
-                    debug("Removing SUMO vehicle {} from simulation and releasing colosseum node {}"
-                          .format(sumo_vehicle, colosseum_node))
-
-            # tell colosseum about new vehicles and the mapping between the vehicle and node
-            for sumo_vehicle in new_vehicles:
-                # TODO: currently we assume that all vehicles are created at the beginning of the simulation
-                # this logic needs to be changed in the future if we want to allow vehicles to be created afterwards
-                # Basically if a new vehicle is created, we are at the beginning, so we tell colosseum about them
-                # and then wait for colosseum for the start signal
-                self.waiting_for_colosseum = True
-                colosseum_node = self.assign_free_colosseum_node(sumo_vehicle)
-                if colosseum_node == -1:
-                    error("Error: no available free node in colosseum for SUMO vehicle (id={}) ".format(sumo_vehicle))
-                else:
-                    m = NewVehicleMessage(sumo_vehicle, colosseum_node)
-                    update_msg.add(m)
-
-                    # get info about vehicle at each time step
-                    traci.vehicle.subscribe(sumo_vehicle, [VAR_POSITION])
-
-                    # we don't need to fetch initial vehicle position from SUMO
-                    # apparently subscribing magically adds vehicle data to the variable "subscriptions"
-                    # # tell colosseum about the initial node position
-                    # x, y = traci.vehicle.getPosition(sumo_vehicle)
-                    # m = PositionUpdateMessage(colosseum_node, x, y)
-                    # update_msg.add(m)
-                    debug("Adding new SUMO vehicle {} to simulation and assigning it to colosseum node {}"
-                          .format(sumo_vehicle, colosseum_node))
-
-            for sumo_vehicle in self.vehicle_to_node.keys():
-                if sumo_vehicle not in subscriptions.keys():
-                    error("Vehicle {} not in subscription results".format(sumo_vehicle))
-                else:
-                    colosseum_node = self.get_colosseum_node(sumo_vehicle)
-                    if colosseum_node == -1:
-                        error("SUMO vehicle {} is not associated to any node in colosseum".format(sumo_vehicle))
-                    else:
-                        x, y = subscriptions[sumo_vehicle][VAR_POSITION]
-                        if self.use_geo_coord:
-                            x_geo, y_geo = traci.simulation.convertGeo(x, y)
-                            m = PositionUpdateMessage(colosseum_node, x_geo, y_geo, self.crs)
-                            debug("SUMO vehicle {} geo coordinates: x={}, y={} ({})"
-                                  .format(sumo_vehicle, x_geo, y_geo, self.crs))
-                        else:
-                            m = PositionUpdateMessage(colosseum_node, x, y)
-
-                        update_msg.add(m)
-                        debug("Updating SUMO vehicle {} (colosseum node {}) position (x={}, y={})"
-                              .format(sumo_vehicle, colosseum_node, x, y, self.crs))
+            self.process_old_vehicles(old_vehicles, update_msg)
+            self.process_new_vehicles(new_vehicles, update_msg)
+            self.process_subscriptions(subscriptions, update_msg)
 
             self.publish(SUMO_UPDATE_TOPIC, update_msg.to_json())
             debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
@@ -256,6 +306,7 @@ class Colosseumo(MQTTClient):
                 # TODO: here we assume that sumo processing time is 0. needs to be updated in the future
                 sleep(self.timestep)
 
+        # exited from main simulation loop because it is terminated. cleanup stuff
         update_msg = MQTTUpdate()
         for sumo_vehicle in self.vehicle_to_node.keys():
             colosseum_node = self.get_colosseum_node(sumo_vehicle)
@@ -270,8 +321,20 @@ class Colosseumo(MQTTClient):
         self.publish(SUMO_UPDATE_TOPIC, update_msg.to_json())
         debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
 
+        if self.test_mode:
+            # if we are in test mode, colosseumo instantiated application classes itself
+            # it also needs to kill them
+            for sumo_vehicle in self.applications.keys():
+                app = self.applications[sumo_vehicle]
+                app.stop_application()
+                del app
+
         debug("Closing simulation")
-        traci.close()
+        try:
+            traci.close()
+        except FatalTraCIError:
+            # if we come here because sumo has been closed, we cannot close it again
+            pass
 
     def update_vehicles(self, sumo_vehicles):
         new_vehicles = set(sumo_vehicles).difference(self.sumo_vehicles)
@@ -288,9 +351,12 @@ def main():
     parser.add_argument("--port", help="Port of the broker", default=12345, type=int)
     parser.add_argument("--config", help="SUMO config file")
     parser.add_argument("--scenario", help="Python scenario to instantiate", default="scenario.Scenario")
+    parser.add_argument("--application", help="Python application each node should run", default="")
+    parser.add_argument("--params", help="File JSON with simulation parameters passed to scenario and application", default="")
     parser.add_argument("--nodes", help="Number of available nodes in colosseum", default=32, type=int)
     parser.add_argument("--time", help="Maximum simulation time in seconds", default=60, type=int)
     parser.add_argument("--gui", help="Use SUMO in GUI mode", action="store_true", default=False)
+    parser.add_argument("--test", help="Run without Colosseum", action="store_true", default=False)
     args = parser.parse_args()
     module, class_name = args.scenario.rsplit(".", 1)
     m = import_module(module)
@@ -299,7 +365,22 @@ def main():
     port = args.port
     config = args.config
     gui = args.gui
-    colosseumo = Colosseumo("sumo", broker, port, config, scenario, list(range(args.nodes)), gui)
+    test = args.test
+    if test:
+        # if we run in test mode without colosseum, classes are instantiated directly by Colosseumo
+        module, class_name = args.application.rsplit(".", 1)
+        m = import_module(module)
+        application = getattr(m, class_name)
+    else:
+        # otherwise we will pass the class name to Colosseumo
+        application = args.application
+    if args.params == "":
+        parameters = "{}"
+    else:
+        with open(args.params) as params_file:
+            parameters = params_file.read()
+    colosseumo = Colosseumo("sumo", broker, port, config, scenario, application, parameters,
+                            list(range(args.nodes)), gui, test)
     colosseumo.connect_mqtt()
     colosseumo.subscribe(COLOSSEUM_UPDATE_TOPIC)
     attempt = 1

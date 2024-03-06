@@ -24,9 +24,10 @@ from utils import add_platooning_vehicle
 
 
 class LustScenario(Scenario):
-    def __init__(self, traci, plexe, gui):
-        super().__init__(traci, plexe, gui)
-        self.add_vehicles(3, 30, 20, 4, 5)
+    def __init__(self, traci, plexe, gui, sim_parameters):
+        super().__init__(traci, plexe, gui, sim_parameters)
+
+        self.add_vehicles(self.parameters["ncars"], 30, self.parameters["speed"], 4, 5)
 
     def add_vehicles(self, n, position, speed, length, distance):
         """
@@ -53,7 +54,6 @@ class LustScenario(Scenario):
                 leader = vid
             else:
                 plexe.set_active_controller(vid, CACC)
-                plexe.enable_auto_feed(vid, True, leader, "p.%d" % (i-1))
                 plexe.add_member(leader, vid, i)
         if self.gui:
             traci.gui.trackVehicle("View #0", leader)

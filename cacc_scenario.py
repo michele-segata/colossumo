@@ -23,9 +23,9 @@ from utils import add_platooning_vehicle
 
 
 class CaccScenario(Scenario):
-    def __init__(self, traci, plexe, gui):
-        super().__init__(traci, plexe, gui)
-        self.add_vehicles(4, 100, 25, 4, 5)
+    def __init__(self, traci, plexe, gui, sim_parameters):
+        super().__init__(traci, plexe, gui, sim_parameters)
+        self.add_vehicles(self.parameters["ncars"], 100, self.parameters["speed"], 4, 5)
 
     def add_vehicles(self, n, position, speed, length, distance):
         """

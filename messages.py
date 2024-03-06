@@ -104,17 +104,22 @@ class CurrentTimeMessage(Message):
 class NewVehicleMessage(Message):
     """ Message to be sent to colosseum to notify about the creation of a new vehicle and the mapping with the node
     """
-    def __init__(self, sumo_id=None, colosseum_id=None):
+    def __init__(self, sumo_id=None, colosseum_id=None, application=None, parameters=None):
         super().__init__()
         self.type = "new_vehicle"
         self.sumo_id = sumo_id
         self.colosseum_id = colosseum_id
-        self.content = {"sumo_id": self.sumo_id, "colosseum_id": self.colosseum_id}
+        self.application = application
+        self.parameters = parameters
+        self.content = {"sumo_id": self.sumo_id, "colosseum_id": self.colosseum_id, "application": self.application,
+                        "parameters": self.parameters}
         self.keys = self.content.keys()
 
     def from_object(self):
         self.sumo_id = self.content["sumo_id"]
         self.colosseum_id = self.content["colosseum_id"]
+        self.application = self.content["application"]
+        self.parameters = self.content["parameters"]
 
 
 class DeleteVehicleMessage(NewVehicleMessage):
@@ -148,7 +153,8 @@ class VehicleDataMessage(Message):
     """ Message used to fetch vehicle data from SUMO by a colosseum node or to set data about another vehicle when a
     packet is received
     """
-    def __init__(self, sumo_id, controller_acceleration, acceleration, speed, time, x, y):
+    def __init__(self, sumo_id=None, controller_acceleration=None, acceleration=None, speed=None, time=None, x=None,
+                 y=None, sender=""):
         super().__init__()
         self.type = "vehicle_data"
         self.sumo_id = sumo_id
@@ -158,6 +164,7 @@ class VehicleDataMessage(Message):
         self.time = time
         self.x = x
         self.y = y
+        self.sender = sender
         self.content = {
             "sumo_id": self.sumo_id,
             "controller_acceleration": self.controller_acceleration,
@@ -166,6 +173,7 @@ class VehicleDataMessage(Message):
             "time": self.time,
             "x": self.x,
             "y": self.y,
+            "sender": self.sender,
         }
         self.keys = self.content.keys()
 
@@ -177,6 +185,7 @@ class VehicleDataMessage(Message):
         self.time = self.content["time"]
         self.x = self.content["x"]
         self.y = self.content["y"]
+        self.sender = self.content["sender"]
 
 
 class StartSimulationMessage(Message):
@@ -203,3 +212,57 @@ class StopSimulationMessage(Message):
         self.content = {
         }
         self.keys = self.content.keys()
+
+
+class APICallMessage(Message):
+    """ Message sent from colosseum to invoke an API
+    """
+    TYPE = "api_call"
+
+    def __init__(self, sumo_id=None, api_code=None, transaction_id=None, parameters=None):
+        super().__init__()
+        self.type = APICallMessage.TYPE
+        self.sumo_id = sumo_id
+        self.api_code = api_code
+        self.transaction_id = transaction_id
+        self.parameters = parameters
+        self.content = {
+            "sumo_id": sumo_id,
+            "api_code": api_code,
+            "transaction_id": transaction_id,
+            "parameters": parameters
+        }
+        self.keys = self.content.keys()
+
+    def from_object(self):
+        self.sumo_id = self.content["sumo_id"]
+        self.api_code = self.content["api_code"]
+        self.transaction_id = int(self.content["transaction_id"])
+        self.parameters = self.content["parameters"]
+
+
+class APIResponseMessage(Message):
+    """ Message sent from Colosseumo to Colosseum to return the response of a remote call
+    """
+    TYPE = "api_return"
+
+    def __init__(self, sumo_id=None, api_code=None, transaction_id=None, response=None):
+        super().__init__()
+        self.type = APIResponseMessage.TYPE
+        self.sumo_id = sumo_id
+        self.api_code = api_code
+        self.transaction_id = transaction_id
+        self.response = response
+        self.content = {
+            "sumo_id": sumo_id,
+            "api_code": api_code,
+            "transaction_id": transaction_id,
+            "response": response
+        }
+        self.keys = self.content.keys()
+
+    def from_object(self):
+        self.sumo_id = self.content["sumo_id"]
+        self.api_code = self.content["api_code"]
+        self.transaction_id = int(self.content["transaction_id"])
+        self.response = self.content["response"]
