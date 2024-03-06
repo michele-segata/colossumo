@@ -23,13 +23,14 @@ class MQTTUpdate:
     """ Class used to combine multiple messages and send them to colosseum
     """
     def __init__(self):
+        self.type = "MQTTUpdate"
         self.messages = []
 
     def add(self, message):
         self.messages.append(message.to_object())
 
     def to_json(self):
-        return dumps(self.messages)
+        return dumps({"type": self.type, "messages": self.messages})
 
 
 class Message:

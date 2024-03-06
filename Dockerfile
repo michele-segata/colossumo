@@ -6,6 +6,7 @@ LABEL Description="Dockerised Simulation of Urban MObility(SUMO)"
 RUN apt-get update && apt install -y software-properties-common
 RUN add-apt-repository ppa:sumo/stable && apt-get update
 RUN apt-get install -y sumo sumo-tools sumo-doc
+RUN apt-get install -y libxml2-dev libxslt-dev python3-libxml2
 
 #Install Plexe-Pyapi
 RUN apt-get install -y git python3-pip
@@ -22,4 +23,4 @@ RUN pip3 install -r requirements.txt
 COPY . /colossesumo
 
 
-CMD python3 colosseumo.py --broker mosquitto --port 1883 --config /cfg/lust.sumo.cfg --scenario lust_scenario.LustScenario --nodes 10 --time 60
+CMD python3 colosseumo.py --broker dev-srn-001 --port 1883 --config /cfg/lust.sumo.cfg --scenario lust_scenario.LustScenario --nodes 10 --time 6000 --gui

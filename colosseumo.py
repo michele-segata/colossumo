@@ -97,6 +97,32 @@ class Colosseumo(MQTTClient):
         self.stop_simulation = False
         # API interpreter utility
         self.api_interpreter = None
+    
+    def on_connect(self, client, userdata, flags, rc, properties):
+        if rc == 0:
+            self.connected = True
+            debug("Connected to MQTT Broker!")
+        else:
+            error("Failed to connect, return code %d\n", rc)
+
+    def connect_mqtt(self):
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.client_id)
+        client.username_pw_set("user", "pwd")
+        client.on_connect = self.on_connect
+        client.connect(self.broker, self.port)
+        client.loop_start()
+        self.client = client
+
+    def disconnect_mqtt(self):
+        if self.connected:
+            self.client.loop_stop()
+            self.client.disconnect()
+
+    def publish(self, topic, data):
+        result = self.client.publish(topic, data)
+        # result: [0, 1]
+        status = result[0]
+        return status == 0
 
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode()
@@ -104,13 +130,12 @@ class Colosseumo(MQTTClient):
         for listener in self.listeners:
             listener(msg)
         if msg.topic == COLOSSEUM_UPDATE_TOPIC:
-            data = loads(payload)
-            for m in data:
-                if "type" in m.keys():
-                    if m["type"] == StartSimulationMessage.TYPE:
-                        self.waiting_for_colosseum = False
-                    if m["type"] == StopSimulationMessage.TYPE:
-                        self.stop_simulation = True
+            m = loads(payload)
+            if "type" in m.keys():
+                if m["type"] == StartSimulationMessage.TYPE:
+                    self.waiting_for_colosseum = False
+                if m["type"] == StopSimulationMessage.TYPE:
+                    self.stop_simulation = True
         if msg.topic.startswith(TOPIC_API_PREFIX):
             response_topic, result = self.api_interpreter.serve_api_call(msg.topic, payload)
             if result is not None:
@@ -169,7 +194,7 @@ class Colosseumo(MQTTClient):
         # load coordinate reference system
         crs = CRS.from_string(coordinate_system)
         self.crs = ":".join(crs.to_authority())
-        self.use_geo_coord = True
+        self.use_geo_coord = False
         return True
 
     def process_new_vehicles(self, new_vehicles, update_msg):
