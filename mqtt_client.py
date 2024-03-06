@@ -31,17 +31,22 @@ class MQTTClient:
         self.port = port
         self.client = None
 
-    def on_connect(self, client, userdata, flags, rc, properties):
+    def __on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
             debug("Connected to MQTT Broker!")
+            self.on_connect()
         else:
             error("Failed to connect, return code %d\n", rc)
+
+    def on_connect(self):
+        # to be overriden by inheriting classes
+        pass
 
     def connect_mqtt(self):
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.client_id)
         self.client = client
         client.username_pw_set("user", "pwd")
-        client.on_connect = self.on_connect
+        client.on_connect = self.__on_connect
         client.connect(self.broker, self.port)
         client.loop_start()
 
