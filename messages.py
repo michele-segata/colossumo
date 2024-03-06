@@ -49,6 +49,10 @@ class Message:
         self.content = {}
         self.keys = []
 
+    def set_field(self, name, value):
+        setattr(self, name, value)
+        self.content[name] = value
+
     def to_object(self):
         return {
             "type": self.type,
