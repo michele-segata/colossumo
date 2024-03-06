@@ -66,8 +66,8 @@ class Application(MQTTClient):
         self.connect_mqtt()
 
     def parse_parameters(self):
-        error("parse_parameters method must be overridden by subclass")
-        exit(1)
+        # should be overridden by subclass
+        pass
 
     def on_connect(self):
         self.subscribe(TOPIC_API_RESPONSE.format(sumo_id=self.sumo_id))
