@@ -165,9 +165,6 @@ class VehicleDataMessage(Message):
         }
         self.keys = self.content.keys()
 
-    def __init__(self):
-        super().__init__()
-
     def from_object(self):
         self.sumo_id = self.content["sumo_id"]
         self.controller_acceleration = self.content["controller_acceleration"]
