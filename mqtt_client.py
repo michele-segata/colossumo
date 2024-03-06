@@ -41,11 +41,11 @@ class MQTTClient:
 
     def connect_mqtt(self):
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.client_id)
+        self.client = client
         client.username_pw_set("user", "pwd")
         client.on_connect = self.on_connect
         client.connect(self.broker, self.port)
         client.loop_start()
-        self.client = client
 
     def disconnect_mqtt(self):
         if self.connected:
