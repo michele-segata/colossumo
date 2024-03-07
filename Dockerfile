@@ -23,4 +23,4 @@ RUN pip3 install -r requirements.txt
 COPY . /colossesumo
 
 
-CMD python3 colosseumo.py --broker dev-srn-001 --port 1883 --config /cfg/lust.sumo.cfg --scenario lust_scenario.LustScenario --nodes 10 --time 6000 --gui
+CMD python3 colosseumo.py --broker mosquitto --port 1883 --config /cfg/lust.sumo.cfg --scenario lust_scenario.LustScenario --nodes 10 --time 60

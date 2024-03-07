@@ -1,7 +1,5 @@
 paho-mqtt == 2.0.0
-<<<<<<< Updated upstream
 traci
 PlexeAPI @ git+https://github.com/michele-segata/plexe-pyapi@b726fe5
-=======
 traci
->>>>>>> Stashed changes
+configargparse

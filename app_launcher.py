@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
-from argparse import ArgumentParser
+from configargparse import ArgumentParser
 from importlib import import_module
 from logging import basicConfig, DEBUG
 
@@ -23,7 +23,7 @@ from logging import basicConfig, DEBUG
 def main():
     # set debug level
     basicConfig(level=DEBUG)
-    parser = ArgumentParser(description="Python script to launch an application on a SRN node")
+    parser = ArgumentParser(description="Python script to launch an application on a SRN node", default_config_files=['.env'])
     parser.add_argument("--sumoid", help="SUMO vehicle id")
     parser.add_argument("--colosseumid", help="Colosseum node id", type=int)
     parser.add_argument("--broker", help="IP address of the broker", default="127.0.0.1")
