@@ -19,6 +19,7 @@ from json import loads
 from logging import error, debug
 from os import _exit
 from threading import Lock, Semaphore
+import time
 
 from constants import TOPIC_API_CALL, TOPIC_API_RESPONSE, TOPIC_DIRECT_COMM
 from killing_thread import KillingThread
@@ -74,6 +75,8 @@ class Application(MQTTClient):
         self.subscribe(TOPIC_DIRECT_COMM.format(sumo_id=self.sumo_id))
 
     def start_thread(self, method):
+        while(not self.client.is_connected()):
+            time.sleep(0.1)
         thread = KillingThread(target=method)
         self.threads.append(thread)
         thread.start()
