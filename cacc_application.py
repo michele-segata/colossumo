@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
-from logging import debug
+from logging import debug, warning
 from time import sleep
 
 from plexe.plexe_imp.ccparams import PAR_LEADER_SPEED_AND_ACCELERATION, PAR_PRECEDING_SPEED_AND_ACCELERATION, \
@@ -84,7 +84,7 @@ class CACCApplication(Application):
         if self.is_leader:
             return
         if source == self.leader or source == self.preceding:
-            debug(f"{self.sumo_id} received packet from {source}: {packet.to_json()}")
+            warning(f"{self.sumo_id} received packet from {source}: {packet.to_json()}")
             if source == self.leader:
                 self.call_plexe_api(PAR_LEADER_SPEED_AND_ACCELERATION, packet.to_json())
             if source == self.preceding:

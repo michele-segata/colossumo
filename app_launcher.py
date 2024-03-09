@@ -17,12 +17,12 @@
 #
 from configargparse import ArgumentParser
 from importlib import import_module
-from logging import basicConfig, DEBUG
+from logging import basicConfig, DEBUG, WARNING
 
 
 def main():
     # set debug level
-    basicConfig(level=DEBUG)
+    basicConfig(level=WARNING)
     parser = ArgumentParser(description="Python script to launch an application on a SRN node", default_config_files=['.env'])
     parser.add_argument("--sumoid", help="SUMO vehicle id")
     parser.add_argument("--colosseumid", help="Colosseum node id", type=int)

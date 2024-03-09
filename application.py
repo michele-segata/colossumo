@@ -16,7 +16,7 @@
 #
 from abc import abstractmethod
 from json import loads
-from logging import error, debug
+from logging import error, debug, warning
 from os import _exit
 from threading import Lock, Semaphore
 import time
@@ -150,7 +150,7 @@ class Application(MQTTClient):
             self.udp_broadcast(packet)
             pass
         else:
-            debug(f"Sending packet directly from {self.sumo_id} to {destination}: {packet}")
+            warning(f"Sending packet directly from {self.sumo_id} to {destination}: {packet}")
             self.publish(TOPIC_DIRECT_COMM.format(sumo_id=destination), packet)
 
     def receive(self, source, packet):
@@ -176,8 +176,6 @@ class Application(MQTTClient):
                     # waiting for the answer, the MQTT client will also be blocked and won't be able to publish the call
                     receive_thread = KillingThread(target=self.receive, args=(message.sender, message))
                     receive_thread.start()
-        else:
-            print("Error!!!!")
         
 
     def call_plexe_api(self, api_code, parameters):
