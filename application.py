@@ -20,17 +20,18 @@ from logging import error, debug
 from os import _exit
 from threading import Lock, Semaphore
 import time
+import socket
+import json
 
 from constants import TOPIC_API_CALL, TOPIC_API_RESPONSE, TOPIC_DIRECT_COMM
 from killing_thread import KillingThread
 from messages import APICallMessage, APIResponseMessage, VehicleDataMessage
 from mqtt_client import MQTTClient
 
-
 class Application(MQTTClient):
     """ Base class to be used by all applications
     """
-    def __init__(self, client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode):
+    def __init__(self, client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode, addresses):
         """ Initializer method. This method calls the parse_parameters() method of the subclass, which should parse
         what is needed out of simulation parameters. For this reasons, class variables of the subclass must be
         initialized BEFORE calling the super().__init__() method of Application, otherwise the initialization will
@@ -65,6 +66,39 @@ class Application(MQTTClient):
         self.run = True
         self.parse_parameters()
         self.connect_mqtt()
+        #setup udp comms
+        self.addresses = addresses
+        self.udp_port = 10000 #TODO: should we make this a param?
+        self.init_udp()
+    
+    def init_udp(self):
+        #server socket
+        self.udp_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_server.bind(('0.0.0.0', self.udp_port))
+        self.udp_thread = KillingThread(target=self.udp_worker)
+        self.udp_thread.start()
+        
+        #client sockets #TODO: do we need multiple? probably not since they are statless
+        self.udp_sockets = {}
+        for a in self.addresses:
+            tx_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp_sockets[a] = tx_socket
+
+    def udp_worker(self):
+        debug("Started UDP Server")
+        while True:
+            blob, addr = self.udp_server.recvfrom(2014)
+            data = json.loads(blob)
+            debug("call receive")
+            self.receive(data['content']['sender'], data)
+
+    def udp_broadcast(self, data):
+        for addr in self.udp_sockets.keys():
+            self.udp_unicast(data, addr)
+    
+    def udp_unicast(self, data, addr):
+        payload = data.encode('utf-8')
+        self.udp_sockets[addr].sendto(payload, (addr, self.udp_port))
 
     def parse_parameters(self):
         # should be overridden by subclass
@@ -111,7 +145,8 @@ class Application(MQTTClient):
         """
         if not self.test_mode:
             # TODO: implement this method
-            debug(f"NOT IMPLEMENTED: Sending packet via stack from {self.sumo_id} to {destination}: {packet}")
+            debug(f"Sending broadcast packet via stack from {self.sumo_id} to {destination}: {packet}")
+            self.udp_broadcast(packet)
             pass
         else:
             debug(f"Sending packet directly from {self.sumo_id} to {destination}: {packet}")
@@ -132,13 +167,17 @@ class Application(MQTTClient):
             message = APIResponseMessage()
             if message.from_json(payload):
                 self.__plexe_api_return(message)
-        if msg.topic == TOPIC_DIRECT_COMM.format(sumo_id=self.sumo_id):
-            message = VehicleDataMessage()
-            if message.from_json(payload):
-                # receive must be called in a thread otherwise if we invoke an API (which uses MQTT) and we stop
-                # waiting for the answer, the MQTT client will also be blocked and won't be able to publish the call
-                receive_thread = KillingThread(target=self.receive, args=(message.sender, message))
-                receive_thread.start()
+        if self.test_mode:
+            if msg.topic == TOPIC_DIRECT_COMM.format(sumo_id=self.sumo_id):
+                message = VehicleDataMessage()
+                if message.from_json(payload):
+                    # receive must be called in a thread otherwise if we invoke an API (which uses MQTT) and we stop
+                    # waiting for the answer, the MQTT client will also be blocked and won't be able to publish the call
+                    receive_thread = KillingThread(target=self.receive, args=(message.sender, message))
+                    receive_thread.start()
+        else:
+            print("Error!!!!")
+        
 
     def call_plexe_api(self, api_code, parameters):
         """ Send via MQTT a Plexe API call. This is basically a blocking RPC call done via MQTT

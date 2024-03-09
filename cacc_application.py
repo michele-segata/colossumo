@@ -25,7 +25,7 @@ from messages import VehicleDataMessage
 
 
 class CACCApplication(Application):
-    def __init__(self, client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode):
+    def __init__(self, client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode, addresses):
         """ Initializer method
         :param client_id: client id to be used for MQTT broker
         :param broker: ip address of the MQTT broker
@@ -46,7 +46,7 @@ class CACCApplication(Application):
         self.beacon_interval = None
         self.min_speed = None
         self.max_speed = None
-        super().__init__(client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode)
+        super().__init__(client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode, addresses)
 
     def parse_parameters(self):
         """ Parameters expected in self.parameters:

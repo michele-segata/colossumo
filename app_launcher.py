@@ -30,6 +30,7 @@ def main():
     parser.add_argument("--port", help="Port of the broker", default=12345, type=int)
     parser.add_argument("--params", help="JSON string with simulation params", default="{}")
     parser.add_argument("--application", help="Python application to launch")
+    parser.add_argument("--addresses", type=str, action='append', required=False, help="List of unicast addresses")
     args = parser.parse_args()
     sumo_id = args.sumoid
     colosseum_id = args.colosseumid
@@ -39,7 +40,8 @@ def main():
     m = import_module(module)
     application = getattr(m, class_name)
     parameters = args.params
-    app = application(sumo_id, broker, port, sumo_id, colosseum_id, parameters, False)
+    addresses = args.addresses
+    app = application(sumo_id, broker, port, sumo_id, colosseum_id, parameters, False, addresses)
     app.start_application()
     app.join_threads()
 
