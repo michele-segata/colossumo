@@ -89,8 +89,9 @@ class Application(MQTTClient):
         while True:
             blob, addr = self.udp_server.recvfrom(2014)
             data = json.loads(blob)
-            debug("call receive")
-            self.receive(data['content']['sender'], data)
+            message = VehicleDataMessage()
+            if message.from_json(blob):
+                self.receive(data['content']['sender'], message)
 
     def udp_broadcast(self, data):
         for addr in self.udp_sockets.keys():
