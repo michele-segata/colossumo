@@ -76,8 +76,7 @@ class CACCApplication(Application):
         self.max_speed = float(self.parameters["max_speed"])
 
     def on_start_application(self):
-        if not self.is_last:
-            self.start_thread(self.beaconing_thread)
+        self.start_thread(self.beaconing_thread)
         if self.is_leader:
             self.start_thread(self.change_speed_thread)
 
@@ -94,16 +93,18 @@ class CACCApplication(Application):
                 self.call_plexe_api(PAR_PRECEDING_SPEED_AND_ACCELERATION, packet.to_json())
 
     def send_beacon(self):
-        if self.is_last:
-            return
-
         data = self.call_plexe_api(CC_PAR_VEHICLE_DATA, self.sumo_id)
         if data is None:
             return
-        #log current location
-        
+        #log current location even if I am the last
         msg = VehicleDataMessage(seqn=self.beacon_id)
         msg.from_json(data)
+        self.log_position({'x':msg.content['x'], 'y': msg.content['y']})
+        
+        #TODO: fix questa porcata
+        if self.is_last:
+            return
+    
         msg.sender = self.sumo_id
         msg.content["sender"] = self.sumo_id
         msg.content["ts"] = time.time()
@@ -119,7 +120,6 @@ class CACCApplication(Application):
             data = msg.to_json()
             self.transmit(self.following, data)
         self.beacon_id+=1
-        self.log_position({'x':msg.content['x'], 'y': msg.content['y']})
 
     def change_speed_thread(self):
         msg = VehicleDataMessage()

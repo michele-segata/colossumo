@@ -71,6 +71,7 @@ class Application(MQTTClient):
         self.udp_port = 10000 #TODO: should we make this a param?
         self.init_udp()
         #init logfile
+        self.mutex_logfile = Lock()
         self.logfile = open(f"logs/{self.sumo_id}.log", "w")
     
     def init_udp(self):
@@ -144,13 +145,15 @@ class Application(MQTTClient):
     
     def log_packet(self, source, packet):
         warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
-        self.logfile.write(f"RX_MSG,{time.time()};{source};{packet.to_json()}\n")
-        self.logfile.flush()
+        with self.mutex_logfile:
+            self.logfile.write(f"RX_MSG,{time.time()};{source};{packet.to_json()}\n")
+            self.logfile.flush()
     
     def log_position(self, pos):
         warning(f"Logging current position {pos}")
-        self.logfile.write(f"POS;{time.time()};{pos}\n")
-        self.logfile.flush()
+        with self.mutex_logfile:
+            self.logfile.write(f"POS;{time.time()};{pos}\n")
+            self.logfile.flush()
 
 
     def transmit(self, destination, packet):
