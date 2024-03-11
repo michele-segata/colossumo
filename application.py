@@ -138,6 +138,11 @@ class Application(MQTTClient):
         self.on_stop_application()
         self.join_threads()
         self.client.disconnect()
+    
+    def log_packet(self, source, packet):
+        warning(f"Logging received packet {packet} from {source} at {time.time()}")
+        pass
+
 
     def transmit(self, destination, packet):
         """ Method used to send a packet through the communication interface

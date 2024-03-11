@@ -16,6 +16,7 @@
 #
 from logging import debug, warning
 from time import sleep
+import time
 
 from plexe.plexe_imp.ccparams import PAR_LEADER_SPEED_AND_ACCELERATION, PAR_PRECEDING_SPEED_AND_ACCELERATION, \
     CC_PAR_VEHICLE_DATA, PAR_CC_DESIRED_SPEED
@@ -81,6 +82,7 @@ class CACCApplication(Application):
 
     def receive(self, source, packet):
         # leader uses no other vehicle data
+        self.log_packet(source, packet)
         if self.is_leader:
             return
         if source == self.leader or source == self.preceding:
@@ -101,6 +103,7 @@ class CACCApplication(Application):
         msg.from_json(data)
         msg.sender = self.sumo_id
         msg.content["sender"] = self.sumo_id
+        msg.content["ts"] = time.time()
         data = msg.to_json()
         if self.is_leader:
             for i in range(1, len(self.formation)):

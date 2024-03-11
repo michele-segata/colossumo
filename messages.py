@@ -121,6 +121,7 @@ class NewVehicleMessage(Message):
         self.colosseum_id = self.content["colosseum_id"]
         self.application = self.content["application"]
         self.parameters = self.content["parameters"]
+        self.timestamp = self.content["timestamp"]
 
 
 class DeleteVehicleMessage(NewVehicleMessage):
