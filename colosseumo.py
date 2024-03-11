@@ -223,7 +223,7 @@ class Colosseumo(MQTTClient):
 
                 if self.test_mode:
                     app = self.application(sumo_vehicle, self.broker, self.port, sumo_vehicle, colosseum_node,
-                                           self.sim_parameters, self.test_mode)
+                                           self.sim_parameters, self.test_mode, None)
                     self.applications[sumo_vehicle] = app
                     # don't start the application, we might need to wait for colosseum to give us green light
                     self.applications_to_start.append(app)
