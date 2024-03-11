@@ -49,6 +49,7 @@ class Application(MQTTClient):
         self.colosseum_id = colosseum_id
         self.parameters = loads(parameters)
         self.test_mode = test_mode
+        self.start_time = -1
         # MQTT topics used to send/receive data to/from SUMO
         self.topic_api_call = TOPIC_API_CALL.format(sumo_id=sumo_id)
         self.topic_api_response = TOPIC_API_RESPONSE.format(sumo_id=sumo_id)
@@ -135,6 +136,7 @@ class Application(MQTTClient):
         pass
 
     def start_application(self):
+        self.start_time = time.time()
         self.on_start_application()
 
     def stop_application(self):
