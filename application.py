@@ -93,6 +93,7 @@ class Application(MQTTClient):
             data = json.loads(blob)
             message = VehicleDataMessage()
             if message.from_json(blob) and data["content"]["recipient"] == self.sumo_id:
+                #process data only if I am the recipient of the packet
                 self.receive(data['content']['sender'], message)
 
     def udp_broadcast(self, data):
@@ -143,7 +144,12 @@ class Application(MQTTClient):
     
     def log_packet(self, source, packet):
         warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
-        self.logfile.write(f"{time.time()};{source};{packet.to_json()}\n")
+        self.logfile.write(f"RX_MSG,{time.time()};{source};{packet.to_json()}\n")
+        self.logfile.flush()
+    
+    def log_position(self, pos):
+        warning(f"Logging current position {pos}")
+        self.logfile.write(f"POS;{time.time()};{pos}\n")
         self.logfile.flush()
 
 

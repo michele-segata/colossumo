@@ -83,8 +83,7 @@ class CACCApplication(Application):
 
     def receive(self, source, packet):
         # leader uses no other vehicle data
-        if source != self.sumo_id:
-            self.log_packet(source, packet)
+        self.log_packet(source, packet)
         if self.is_leader:
             return
         if source == self.leader or source == self.preceding:
@@ -101,6 +100,8 @@ class CACCApplication(Application):
         data = self.call_plexe_api(CC_PAR_VEHICLE_DATA, self.sumo_id)
         if data is None:
             return
+        #log current location
+        
         msg = VehicleDataMessage(seqn=self.beacon_id)
         msg.from_json(data)
         msg.sender = self.sumo_id
@@ -118,6 +119,7 @@ class CACCApplication(Application):
             data = msg.to_json()
             self.transmit(self.following, data)
         self.beacon_id+=1
+        self.log_position({'x':msg.content['x'], 'y': msg.content['y']})
 
     def change_speed_thread(self):
         msg = VehicleDataMessage()
