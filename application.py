@@ -76,23 +76,26 @@ class Application(MQTTClient):
         self.run = True
         self.parse_parameters()
         self.connect_mqtt()
-        #setup udp comms
-        self.addresses = addresses
-        self.udp_port = 10000 #TODO: should we make this a param?
-        self.init_udp()
-        #init logfile
+        # setup udp comms
+        if not self.test_mode:
+            self.addresses = addresses
+            self.udp_port = 10000 #TODO: should we make this a param?
+            self.udp_server = None
+            self.udp_thread = None
+            self.udp_sockets = {}
+            self.init_udp()
+        # init logfile
         self.mutex_logfile = Lock()
         self.logfile = open(f"logs/{self.sumo_id}.log", "w")
     
     def init_udp(self):
-        #server socket
+        # server socket
         self.udp_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_server.bind(('0.0.0.0', self.udp_port))
         self.udp_thread = KillingThread(target=self.udp_worker)
         self.udp_thread.start()
         
-        #client sockets #TODO: do we need multiple? probably not since they are statless
-        self.udp_sockets = {}
+        # client sockets #TODO: do we need multiple? probably not since they are statless
         for a in self.addresses:
             tx_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.udp_sockets[a] = tx_socket
@@ -104,7 +107,7 @@ class Application(MQTTClient):
             data = json.loads(blob)
             message = VehicleDataMessage()
             if message.from_json(blob) and data["content"]["recipient"] == self.sumo_id:
-                #process data only if I am the recipient of the packet
+                # process data only if I am the recipient of the packet
                 self.receive(data['content']['sender'], message)
 
     def udp_broadcast(self, data):
@@ -167,7 +170,6 @@ class Application(MQTTClient):
         with self.mutex_logfile:
             self.logfile.write(f"POS;{time.time()};{pos}\n")
             self.logfile.flush()
-
 
     def transmit(self, destination, packet):
         """ Method used to send a packet through the communication interface

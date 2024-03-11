@@ -149,7 +149,7 @@ class CACCApplication(Application):
             msg.set_field("recipient", self.following)
             data = msg.to_json()
             self.transmit(self.following, data)
-        self.beacon_id+=1
+        self.beacon_id += 1
 
     def change_speed_thread(self):
         msg = VehicleDataMessage()
