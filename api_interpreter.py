@@ -18,7 +18,7 @@ from logging import debug, error
 
 import plexe.plexe_imp.plexe_sumo_eclipse
 from plexe.plexe_imp.ccparams import CC_PAR_VEHICLE_DATA, PAR_LEADER_SPEED_AND_ACCELERATION, \
-    PAR_PRECEDING_SPEED_AND_ACCELERATION, PAR_CC_DESIRED_SPEED
+    PAR_PRECEDING_SPEED_AND_ACCELERATION, PAR_CC_DESIRED_SPEED, PAR_ACTIVE_CONTROLLER
 from plexe.vehicle_data import VehicleData
 from traci import FatalTraCIError
 
@@ -69,6 +69,10 @@ class APIInterpreter:
                     msg = VehicleDataMessage()
                     msg.from_json(call_msg.parameters)
                     self.plexe.set_cc_desired_speed(sumo_id, msg.speed)
+                    response.set_field("response", "true")
+                if call_msg.api_code == PAR_ACTIVE_CONTROLLER:
+                    controller = int(call_msg.parameters)
+                    self.plexe.set_active_controller(sumo_id, controller)
                     response.set_field("response", "true")
             except FatalTraCIError as e:
                 error(f"TraCI returned exception {e}")
