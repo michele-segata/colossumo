@@ -140,7 +140,7 @@ class Application(MQTTClient):
         self.client.disconnect()
     
     def log_packet(self, source, packet):
-        warning(f"Logging received packet {packet} from {source} at {time.time()}")
+        warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
         pass
 
 

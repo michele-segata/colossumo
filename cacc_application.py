@@ -82,7 +82,8 @@ class CACCApplication(Application):
 
     def receive(self, source, packet):
         # leader uses no other vehicle data
-        self.log_packet(source, packet)
+        if source != self.sumo_id:
+            self.log_packet(source, packet)
         if self.is_leader:
             return
         if source == self.leader or source == self.preceding:
