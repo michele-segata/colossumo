@@ -99,7 +99,7 @@ class Application(MQTTClient):
 
     def udp_worker(self):
         debug("Started UDP Server")
-        while True:
+        while self.run:
             blob, addr = self.udp_server.recvfrom(2014)
             data = json.loads(blob)
             message = VehicleDataMessage()
