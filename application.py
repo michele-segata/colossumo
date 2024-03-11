@@ -113,10 +113,10 @@ class Application(MQTTClient):
         self.subscribe(TOPIC_API_RESPONSE.format(sumo_id=self.sumo_id))
         self.subscribe(TOPIC_DIRECT_COMM.format(sumo_id=self.sumo_id))
 
-    def start_thread(self, method):
-        while(not self.client.is_connected()):
+    def start_thread(self, method, params=()):
+        while not self.client.is_connected():
             time.sleep(0.1)
-        thread = KillingThread(target=method)
+        thread = KillingThread(target=method, args=params)
         self.threads.append(thread)
         thread.start()
 
