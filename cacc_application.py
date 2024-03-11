@@ -15,11 +15,11 @@
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 #
 from logging import debug, warning
-from time import sleep
+from time import sleep, time_ns
 import time
 
 from plexe.plexe_imp.ccparams import PAR_LEADER_SPEED_AND_ACCELERATION, PAR_PRECEDING_SPEED_AND_ACCELERATION, \
-    CC_PAR_VEHICLE_DATA, PAR_CC_DESIRED_SPEED
+    CC_PAR_VEHICLE_DATA, PAR_CC_DESIRED_SPEED, PAR_ACTIVE_CONTROLLER, CACC, ACC
 
 from application import Application
 from messages import VehicleDataMessage
@@ -47,6 +47,14 @@ class CACCApplication(Application):
         self.beacon_interval = None
         self.min_speed = None
         self.max_speed = None
+        self.using_cacc = True
+        # timer indicating when the last packet from a vehicle has been received
+        self.last_received_time = {}
+        # sequence number of last packet received from number
+        self.last_received_seqn = {}
+        # number of consecutive packets received from a vehicle
+        self.consecutive_packets = {}
+        self.run_loss_monitors = True
         self.beacon_id = 0
         super().__init__(client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode, addresses)
 
@@ -79,6 +87,28 @@ class CACCApplication(Application):
         self.start_thread(self.beaconing_thread)
         if self.is_leader:
             self.start_thread(self.change_speed_thread)
+        else:
+            self.start_packet_loss_monitors()
+
+    def update_packets_stats(self, source, packet):
+        self.last_received_time[source] = time_ns() / 1e9
+        if source not in self.last_received_seqn:
+            self.last_received_seqn[source] = packet
+            self.consecutive_packets[source] = 0
+        else:
+            if self.last_received_seqn[source] == packet.seqn - 1:
+                self.consecutive_packets[source] += 1
+            else:
+                self.consecutive_packets[source] = 0
+            self.last_received_seqn[source] = packet.seqn
+        if not self.is_leader and not self.using_cacc:
+            # check stats to see if we can switch back to CACC
+            if self.consecutive_packets[self.leader] >= 5 and self.consecutive_packets[self.preceding] >= 5:
+                self.using_cacc = True
+                self.call_plexe_api(PAR_ACTIVE_CONTROLLER, str(CACC))
+                self.start_packet_loss_monitors()
+                debug(f"Vehicle {self.sumo_id} reactivating CACC")
+                # TODO: log change of controller
 
     def receive(self, source, packet):
         # leader uses no other vehicle data
@@ -87,6 +117,7 @@ class CACCApplication(Application):
             return
         if source == self.leader or source == self.preceding:
             warning(f"{self.sumo_id} received packet from {source}: {packet.to_json()}")
+            self.update_packets_stats(source, packet)
             if source == self.leader:
                 self.call_plexe_api(PAR_LEADER_SPEED_AND_ACCELERATION, packet.to_json())
             if source == self.preceding:
@@ -136,4 +167,30 @@ class CACCApplication(Application):
     def beaconing_thread(self):
         while self.run:
             self.send_beacon()
+            sleep(self.beacon_interval)
+
+    def start_packet_loss_monitors(self):
+        self.run_loss_monitors = True
+        if self.position > 0:
+            self.start_thread(self.loss_monitor, (self.leader,))
+            if self.leader != self.preceding:
+                self.start_thread(self.loss_monitor, (self.preceding,))
+
+    def loss_detected(self):
+        # switch to ACC
+        self.call_plexe_api(PAR_ACTIVE_CONTROLLER, str(ACC))
+        self.using_cacc = False
+        self.run_loss_monitors = False
+        debug(f"Vehicle {self.sumo_id} falling back to ACC due to packet losses")
+        # TODO: log fallback event
+
+    def loss_monitor(self, vehicle):
+        while self.run and self.run_loss_monitors:
+            current_time = time_ns() / 1e9
+            if vehicle in self.last_received_time.keys():
+                if current_time - self.last_received_time[vehicle] > 0.5:
+                    # detect 0.5 seconds silence
+                    debug(f"Vehicle {self.sumo_id} detected no packets from {vehicle} for more than 0.5 seconds")
+                    self.loss_detected()
+                    return
             sleep(self.beacon_interval)
