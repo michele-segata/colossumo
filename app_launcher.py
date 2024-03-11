@@ -22,7 +22,7 @@ from logging import basicConfig, DEBUG, WARNING
 
 def main():
     # set debug level
-    basicConfig(level=WARNING)
+    basicConfig(level=DEBUG)
     parser = ArgumentParser(description="Python script to launch an application on a SRN node", default_config_files=['.env'])
     parser.add_argument("--sumoid", help="SUMO vehicle id")
     parser.add_argument("--colosseumid", help="Colosseum node id", type=int)

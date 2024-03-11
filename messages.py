@@ -18,7 +18,6 @@
 from json import dumps, loads
 from types import SimpleNamespace
 
-
 class MQTTUpdate:
     """ Class used to combine multiple messages and send them to colosseum
     """
