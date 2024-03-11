@@ -1,13 +1,21 @@
 version: "3.0"
 services:
   colossesumo:
+    environment:
+      - DISPLAY 
+      - BROKER=dev-srn-001
+      - SUMO_CONFIG=/cfg/lust.sumo.cfg
+      - SUMO_SCENARIO=lust_scenario.LustScenario
+      - SUMO_APP=cacc_application.CACCApplication
+      - PARAMS=cfg/sim_params.json
+      - SIM_TIME=6000
+      #- EXTRA_ARGS=--gui
     container_name: colossesumo
     build: .
-    environment:
-      - DISPLAY
     networks:
       - mqttnet
     volumes:
+      - ./logs/:/colossesumo/logs/
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ./cfg:/cfg
     devices:
