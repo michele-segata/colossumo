@@ -157,6 +157,7 @@ class CACCApplication(Application):
             # accelerate first
             msg.set_field("speed", 25)
             self.call_plexe_api(PAR_CC_DESIRED_SPEED, msg.to_json())
+            # TODO: these two sleeps might block the closure of the simulation for 20 seconds if we are unlucky
             sleep(10)
             # then brake
             msg.set_field("speed", 15)
