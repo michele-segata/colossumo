@@ -99,24 +99,23 @@ class CACCApplication(Application):
         #log current location even if I am the last
         msg = VehicleDataMessage(seqn=self.beacon_id)
         msg.from_json(data)
-        self.log_position({'x':msg.content['x'], 'y': msg.content['y']})
+        self.log_position({'x': msg.x, 'y': msg.y})
         
         #TODO: fix questa porcata
         if self.is_last:
             return
     
-        msg.sender = self.sumo_id
-        msg.content["sender"] = self.sumo_id
-        msg.content["ts"] = time.time()
-        msg.content["seqn"] = self.beacon_id
-        
+        msg.set_field("sender", self.sumo_id)
+        msg.set_field("ts", time.time())
+        msg.set_field("seqn", self.beacon_id)
+
         if self.is_leader:
             for i in range(1, len(self.formation)):
-                msg.content['recipient'] = self.formation[i]
+                msg.set_field("recipient", self.formation[i])
                 data = msg.to_json()
                 self.transmit(self.formation[i], data)
         else:
-            msg.content['recipient'] = self.following
+            msg.set_field("recipient", self.following)
             data = msg.to_json()
             self.transmit(self.following, data)
         self.beacon_id+=1
