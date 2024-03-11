@@ -5,5 +5,8 @@
   "platoon_formation": ["p.0", "p.1", "p.2"],
   "beacon_interval": 0.1,
   "min_speed": 15,
-  "max_speed": 25
+  "max_speed": 25,
+  "loss_rate": 0,
+  "seed": 0,
+  "disable_loss_rate_after": 10
 }
