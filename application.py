@@ -18,6 +18,7 @@ from abc import abstractmethod
 from json import loads
 from logging import error, debug, warning
 from os import _exit
+from random import random, seed
 from threading import Lock, Semaphore
 import time
 import socket
@@ -50,6 +51,14 @@ class Application(MQTTClient):
         self.parameters = loads(parameters)
         self.test_mode = test_mode
         self.start_time = -1
+        if self.test_mode and "loss_rate" in self.parameters.keys():
+            self.loss_rate = float(self.parameters["loss_rate"])
+            if "seed" in self.parameters.keys():
+                seed(int(self.parameters["seed"]))
+            else:
+                seed(0)
+            if "disable_loss_rate_after" in self.parameters.keys():
+                self.disable_loss_rate_after = float(self.parameters["disable_loss_rate_after"])
         # MQTT topics used to send/receive data to/from SUMO
         self.topic_api_call = TOPIC_API_CALL.format(sumo_id=sumo_id)
         self.topic_api_response = TOPIC_API_RESPONSE.format(sumo_id=sumo_id)
@@ -138,6 +147,8 @@ class Application(MQTTClient):
     def start_application(self):
         self.start_time = time.time()
         self.on_start_application()
+        if self.disable_loss_rate_after > 0:
+            self.start_thread(self.disable_loss_rate)
 
     def stop_application(self):
         self.run = False
@@ -191,11 +202,21 @@ class Application(MQTTClient):
             if msg.topic == TOPIC_DIRECT_COMM.format(sumo_id=self.sumo_id):
                 message = VehicleDataMessage()
                 if message.from_json(payload):
+                    if self.loss_rate > 0 and random() < self.loss_rate:
+                        debug(f"Vehicle {self.sumo_id} artificially dropping packet from {message.sender}")
+                        return
                     # receive must be called in a thread otherwise if we invoke an API (which uses MQTT) and we stop
                     # waiting for the answer, the MQTT client will also be blocked and won't be able to publish the call
                     receive_thread = KillingThread(target=self.receive, args=(message.sender, message))
                     receive_thread.start()
-        
+
+    def disable_loss_rate(self):
+        while self.run:
+            if self.start_time > 0 and time.time() - self.start_time > self.disable_loss_rate_after:
+                debug(f"Vehicle {self.sumo_id} disabling artificial loss rate")
+                self.loss_rate = 0
+                return
+            time.sleep(0.1)
 
     def call_plexe_api(self, api_code, parameters):
         """ Send via MQTT a Plexe API call. This is basically a blocking RPC call done via MQTT
