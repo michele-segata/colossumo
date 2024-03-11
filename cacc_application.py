@@ -47,6 +47,7 @@ class CACCApplication(Application):
         self.beacon_interval = None
         self.min_speed = None
         self.max_speed = None
+        self.beacon_id = 0
         super().__init__(client_id, broker, port, sumo_id, colosseum_id, parameters, test_mode, addresses)
 
     def parse_parameters(self):
@@ -100,7 +101,7 @@ class CACCApplication(Application):
         data = self.call_plexe_api(CC_PAR_VEHICLE_DATA, self.sumo_id)
         if data is None:
             return
-        msg = VehicleDataMessage()
+        msg = VehicleDataMessage(seqn=self.beacon_id)
         msg.from_json(data)
         msg.sender = self.sumo_id
         msg.content["sender"] = self.sumo_id
@@ -111,6 +112,7 @@ class CACCApplication(Application):
                 self.transmit(self.formation[i], data)
         else:
             self.transmit(self.following, data)
+        self.beacon_id+=1
 
     def change_speed_thread(self):
         msg = VehicleDataMessage()

@@ -70,6 +70,8 @@ class Application(MQTTClient):
         self.addresses = addresses
         self.udp_port = 10000 #TODO: should we make this a param?
         self.init_udp()
+        #init logfile
+        self.logfile = open(f"logs/{self.sumo_id}.log", "w")
     
     def init_udp(self):
         #server socket
@@ -141,7 +143,7 @@ class Application(MQTTClient):
     
     def log_packet(self, source, packet):
         warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
-        pass
+        self.logfile.write(f"{time.time()};{source};{packet.to_json}")
 
 
     def transmit(self, destination, packet):
