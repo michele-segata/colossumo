@@ -143,7 +143,8 @@ class Application(MQTTClient):
     
     def log_packet(self, source, packet):
         warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
-        self.logfile.write(f"{time.time()};{source};{packet.to_json}")
+        self.logfile.write(f"{time.time()};{source};{packet.to_json()}\n")
+        self.logfile.flush()
 
 
     def transmit(self, destination, packet):

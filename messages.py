@@ -177,7 +177,7 @@ class VehicleDataMessage(Message):
             "x": self.x,
             "y": self.y,
             "sender": self.sender,
-            "seqn": seqn
+            "seqn": self.seqn
         }
         self.keys = self.content.keys()
 
@@ -190,6 +190,7 @@ class VehicleDataMessage(Message):
         self.x = self.content["x"]
         self.y = self.content["y"]
         self.sender = self.content["sender"]
+        self.seqn = self.content["seqn"]
 
 
 class StartSimulationMessage(Message):

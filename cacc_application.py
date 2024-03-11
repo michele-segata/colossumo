@@ -101,11 +101,12 @@ class CACCApplication(Application):
         data = self.call_plexe_api(CC_PAR_VEHICLE_DATA, self.sumo_id)
         if data is None:
             return
-        msg = VehicleDataMessage(seqn=self.beacon_id)
+        msg = VehicleDataMessage()
         msg.from_json(data)
         msg.sender = self.sumo_id
         msg.content["sender"] = self.sumo_id
         msg.content["ts"] = time.time()
+        msg.content["seqn"] = self.beacon_id
         data = msg.to_json()
         if self.is_leader:
             for i in range(1, len(self.formation)):
