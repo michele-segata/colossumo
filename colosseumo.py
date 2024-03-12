@@ -290,7 +290,6 @@ class Colosseumo(MQTTClient):
         self.api_interpreter = APIInterpreter(traci, plexe)
         step = 0
         current_time = 0
-        start_time = time.time()
         scenario = self.scenario(traci, plexe, self.gui, self.sim_parameters)
         traci.vehicle.subscribe("", [TRACI_ID_LIST])
         while current_time <= max_time and not self.stop_simulation:
@@ -332,7 +331,7 @@ class Colosseumo(MQTTClient):
 
             self.publish(SUMO_UPDATE_TOPIC, update_msg.to_json())
             debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
-            self.log_positions(subscriptions, current_time+start_time)
+            self.log_positions(subscriptions, time.time())
             step += 1
             if not self.gui:
                 # TODO: here we assume that sumo processing time is 0. needs to be updated in the future
