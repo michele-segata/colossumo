@@ -32,7 +32,7 @@ from pyproj.crs.crs import CRS
 
 from libxml2 import parseFile
 import paho.mqtt.client as mqtt
-from plexe import Plexe
+from plexe import Plexe, RADAR_DISTANCE
 from traci import TraCIException, FatalTraCIError
 from traci.constants import TRACI_ID_LIST, VAR_POSITION
 
@@ -71,6 +71,7 @@ class Colosseumo(MQTTClient):
         :param test: Boolean: in test mode, Colosseum is not used and communication is handled by Colosseumo
         """
         super().__init__(client_id, broker, port)
+        self.plexe = None
         self.listeners = []
         self.config = config
         self.scenario = scenario
@@ -284,6 +285,7 @@ class Colosseumo(MQTTClient):
         random.seed(1)
         start_sumo(self.config, False, self.gui)
         plexe = Plexe()
+        self.plexe = plexe
         traci.addStepListener(plexe)
         self.api_interpreter = APIInterpreter(traci, plexe)
         step = 0
@@ -377,7 +379,13 @@ class Colosseumo(MQTTClient):
             if sumo_vehicle in subscriptions.keys():
                 x, y = subscriptions[sumo_vehicle][VAR_POSITION]
                 x_geo, y_geo = traci.simulation.convertGeo(x, y)
+                radar_data = self.plexe.get_radar_data(sumo_vehicle)
+                v = traci.vehicle.getSpeed(sumo_vehicle)
+                a = traci.vehicle.getAccel(sumo_vehicle)
+                # log velocita distanza radar e accelerazione
                 self.log_file.write(f"POS;{current_time};{sumo_vehicle};{x};{y};{x_geo};{y_geo}\n")
+                self.log_file.write(f"SPD;{current_time};{sumo_vehicle};{v};{a}\n")
+                self.log_file.write(f"DST;{current_time};{sumo_vehicle};{radar_data[RADAR_DISTANCE]}\n")
                 self.log_file.flush()
 
 def main():
