@@ -19,6 +19,8 @@
 import os
 import random
 import sys
+import time
+
 from argparse import ArgumentParser
 from importlib import import_module
 from json import loads
@@ -286,6 +288,7 @@ class Colosseumo(MQTTClient):
         self.api_interpreter = APIInterpreter(traci, plexe)
         step = 0
         current_time = 0
+        start_time = time.time()
         scenario = self.scenario(traci, plexe, self.gui, self.sim_parameters)
         traci.vehicle.subscribe("", [TRACI_ID_LIST])
         while current_time <= max_time and not self.stop_simulation:
@@ -327,7 +330,7 @@ class Colosseumo(MQTTClient):
 
             self.publish(SUMO_UPDATE_TOPIC, update_msg.to_json())
             debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
-            self.log_positions(subscriptions, current_time)
+            self.log_positions(subscriptions, current_time+start_time)
             step += 1
             if not self.gui:
                 # TODO: here we assume that sumo processing time is 0. needs to be updated in the future
@@ -374,7 +377,7 @@ class Colosseumo(MQTTClient):
             if sumo_vehicle in subscriptions.keys():
                 x, y = subscriptions[sumo_vehicle][VAR_POSITION]
                 x_geo, y_geo = traci.simulation.convertGeo(x, y)
-                self.log_file.write(f"POS;{current_time};{sumo_vehicle};{x};{y};{x_geo};{y_geo}")
+                self.log_file.write(f"POS;{current_time};{sumo_vehicle};{x};{y};{x_geo};{y_geo}\n")
                 self.log_file.flush()
 
 def main():

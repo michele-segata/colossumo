@@ -162,13 +162,18 @@ class Application(MQTTClient):
     def log_packet(self, source, packet):
         warning(f"Logging received packet {packet.to_json()} from {source} at {time.time()}")
         with self.mutex_logfile:
-            self.logfile.write(f"RX_MSG,{time.time()};{source};{packet.to_json()}\n")
+            self.logfile.write(f"RX_MSG;{time.time()};{source};{packet.to_json()}\n")
             self.logfile.flush()
     
     def log_position(self, pos):
         warning(f"Logging current position {pos}")
         with self.mutex_logfile:
             self.logfile.write(f"POS;{time.time()};{pos}\n")
+            self.logfile.flush()
+    
+    def custom_log(self, line):
+        with self.mutex_logfile:
+            self.logfile.write(f"{line}\n")
             self.logfile.flush()
 
     def transmit(self, destination, packet):
