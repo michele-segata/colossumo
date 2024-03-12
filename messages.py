@@ -155,7 +155,7 @@ class VehicleDataMessage(Message):
     packet is received
     """
     def __init__(self, sumo_id=None, controller_acceleration=None, acceleration=None, speed=None, time=None, x=None,
-                 y=None, sender="", seqn=None):
+                 y=None, sender="", seqn=None, ts=None):
         super().__init__()
         self.type = "vehicle_data"
         self.sumo_id = sumo_id
@@ -167,6 +167,7 @@ class VehicleDataMessage(Message):
         self.y = y
         self.sender = sender
         self.seqn = seqn
+        self.ts = ts
         self.content = {
             "sumo_id": self.sumo_id,
             "controller_acceleration": self.controller_acceleration,
@@ -176,7 +177,8 @@ class VehicleDataMessage(Message):
             "x": self.x,
             "y": self.y,
             "sender": self.sender,
-            "seqn": self.seqn
+            "seqn": self.seqn,
+            "ts:": self.ts,
         }
         self.keys = self.content.keys()
 
@@ -190,6 +192,7 @@ class VehicleDataMessage(Message):
         self.y = self.content["y"]
         self.sender = self.content["sender"]
         self.seqn = self.content["seqn"]
+        self.ts = self.content["ts"]
 
 
 class StartSimulationMessage(Message):
