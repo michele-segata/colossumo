@@ -151,16 +151,18 @@ class CACCApplication(Application):
             return
     
         msg.set_field("sender", self.sumo_id)
-        msg.set_field("ts", time.time())
+        
         msg.set_field("seqn", self.beacon_id)
 
         if self.is_leader:
             for i in range(1, len(self.formation)):
                 msg.set_field("recipient", self.formation[i])
+                msg.set_field("ts", time.time())
                 data = msg.to_json()
                 self.transmit(self.formation[i], data)
         else:
             msg.set_field("recipient", self.following)
+            msg.set_field("ts", time.time())
             data = msg.to_json()
             self.transmit(self.following, data)
         self.beacon_id += 1
