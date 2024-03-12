@@ -150,7 +150,7 @@ class Application(MQTTClient):
     def start_application(self):
         self.start_time = time.time()
         self.on_start_application()
-        if self.disable_loss_rate_after > 0:
+        if self.disable_loss_rate > 0:
             self.start_thread(self.disable_loss_rate)
 
     def stop_application(self):
