@@ -178,7 +178,7 @@ class VehicleDataMessage(Message):
             "y": self.y,
             "sender": self.sender,
             "seqn": self.seqn,
-            "ts:": self.ts,
+            "ts": self.ts,
         }
         self.keys = self.content.keys()
 
