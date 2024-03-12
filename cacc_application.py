@@ -48,6 +48,7 @@ class CACCApplication(Application):
         self.min_speed = None
         self.max_speed = None
         self.using_cacc = True
+        self.retry_cacc = -1
         # timer indicating when the last packet from a vehicle has been received
         self.last_received_time = {}
         # sequence number of last packet received from number
@@ -87,28 +88,41 @@ class CACCApplication(Application):
         self.start_thread(self.beaconing_thread)
         if self.is_leader:
             self.start_thread(self.change_speed_thread)
-        else:
-            self.start_packet_loss_monitors()
+        # else:
+        #     self.start_packet_loss_monitors()
 
     def update_packets_stats(self, source, packet):
-        self.last_received_time[source] = time_ns() / 1e9
-        if source not in self.last_received_seqn:
-            self.last_received_seqn[source] = packet
-            self.consecutive_packets[source] = 0
-        else:
-            if self.last_received_seqn[source] == packet.seqn - 1:
-                self.consecutive_packets[source] += 1
-            else:
-                self.consecutive_packets[source] = 0
-            self.last_received_seqn[source] = packet.seqn
-        if not self.is_leader and not self.using_cacc:
-            # check stats to see if we can switch back to CACC
-            if self.consecutive_packets[self.leader] >= 5 and self.consecutive_packets[self.preceding] >= 5:
-                self.using_cacc = True
-                self.call_plexe_api(PAR_ACTIVE_CONTROLLER, str(CACC))
-                self.start_packet_loss_monitors()
-                debug(f"Vehicle {self.sumo_id} reactivating CACC")
-                # TODO: log change of controller
+
+        delay = time.time() - packet.ts
+        if delay > 0.3:
+            if self.using_cacc:
+                # fallback to ACC
+                self.loss_detected()
+            self.retry_cacc = time.time() + 5
+
+        if time.time() > self.retry_cacc:
+            self.using_cacc = True
+            self.call_plexe_api(PAR_ACTIVE_CONTROLLER, str(CACC))
+            debug(f"Vehicle {self.sumo_id} reactivating CACC")
+
+        # self.last_received_time[source] = time_ns() / 1e9
+        # if source not in self.last_received_seqn:
+        #     self.last_received_seqn[source] = packet
+        #     self.consecutive_packets[source] = 0
+        # else:
+        #     if self.last_received_seqn[source] == packet.seqn - 1:
+        #         self.consecutive_packets[source] += 1
+        #     else:
+        #         self.consecutive_packets[source] = 0
+        #     self.last_received_seqn[source] = packet.seqn
+        # if not self.is_leader and not self.using_cacc:
+        #     # check stats to see if we can switch back to CACC
+        #     if self.consecutive_packets[self.leader] >= 5 and self.consecutive_packets[self.preceding] >= 5:
+        #         self.using_cacc = True
+        #         self.call_plexe_api(PAR_ACTIVE_CONTROLLER, str(CACC))
+        #         self.start_packet_loss_monitors()
+        #         debug(f"Vehicle {self.sumo_id} reactivating CACC")
+        #         # TODO: log change of controller
 
     def receive(self, source, packet):
         # leader uses no other vehicle data
