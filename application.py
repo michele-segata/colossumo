@@ -51,6 +51,7 @@ class Application(MQTTClient):
         self.parameters = loads(parameters)
         self.test_mode = test_mode
         self.start_time = -1
+        self.disable_loss_rate_after = -1
         if self.test_mode and "loss_rate" in self.parameters.keys():
             self.loss_rate = float(self.parameters["loss_rate"])
             if "seed" in self.parameters.keys():
@@ -150,7 +151,7 @@ class Application(MQTTClient):
     def start_application(self):
         self.start_time = time.time()
         self.on_start_application()
-        if self.disable_loss_rate > 0:
+        if self.disable_loss_rate_after > 0:
             self.start_thread(self.disable_loss_rate)
 
     def stop_application(self):
