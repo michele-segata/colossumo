@@ -27,7 +27,7 @@ from messages import APICallMessage, VehicleDataMessage, APIResponseMessage
 
 
 class APIInterpreter:
-    """ Class used to interpret API call sent to Colosseumo and translate them into actual TraCI calls
+    """ Class used to interpret API call sent to Colossumo and translate them into actual TraCI calls
     """
     def __init__(self, traci, plexe):
         self.traci = traci

@@ -23,5 +23,5 @@ RUN pip3 install -r requirements.txt
 COPY . /colossesumo
 
 
-CMD python3 colosseumo.py --broker $BROKER --port 1883 --config $SUMO_CONFIG --scenario $SUMO_SCENARIO  --application=$SUMO_APP --params=$PARAMS --time $SIM_TIME $EXTRA_ARGS
+CMD python3 colossumo.py --broker $BROKER --port 1883 --config $SUMO_CONFIG --scenario $SUMO_SCENARIO  --application=$SUMO_APP --params=$PARAMS --time $SIM_TIME $EXTRA_ARGS
 

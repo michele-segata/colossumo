@@ -54,7 +54,7 @@ else:
 import traci
 
 
-class Colosseumo(MQTTClient):
+class Colossumo(MQTTClient):
     def __init__(self, client_id, broker, port, config, scenario, application, parameters, available_nodes, gui, test):
         """ Constructor
         :param client_id: client id to be used for MQTT broker
@@ -68,7 +68,7 @@ class Colosseumo(MQTTClient):
         :param parameters: json string with simulation parameters
         :param available_nodes: list of nodes available in colosseum. TODO: automatically retrieve this list in future
         :param gui: use SUMO in GUI mode or not
-        :param test: Boolean: in test mode, Colosseum is not used and communication is handled by Colosseumo
+        :param test: Boolean: in test mode, Colosseum is not used and communication is handled by Colossumo
         """
         super().__init__(client_id, broker, port)
         self.plexe = None
@@ -249,7 +249,7 @@ class Colosseumo(MQTTClient):
                 m = DeleteVehicleMessage(sumo_vehicle, colosseum_node)
                 update_msg.add(m)
                 if self.test_mode:
-                    # if we are in test mode, colosseumo instantiated application classes itself
+                    # if we are in test mode, colossumo instantiated application classes itself
                     # it also needs to kill them
                     app = self.applications[sumo_vehicle]
                     app.stop_application()
@@ -353,7 +353,7 @@ class Colosseumo(MQTTClient):
         debug("Publishing update to topic {}:\n{}".format(SUMO_UPDATE_TOPIC, update_msg.to_json()))
 
         if self.test_mode:
-            # if we are in test mode, colosseumo instantiated application classes itself
+            # if we are in test mode, colossumo instantiated application classes itself
             # it also needs to kill them
             for sumo_vehicle in self.applications.keys():
                 app = self.applications[sumo_vehicle]
@@ -387,10 +387,11 @@ class Colosseumo(MQTTClient):
                 self.log_file.write(f"DST;{current_time};{sumo_vehicle};{radar_data[RADAR_DISTANCE]}\n")
                 self.log_file.flush()
 
+
 def main():
     # set debug level
     basicConfig(level=DEBUG)
-    parser = ArgumentParser(description="ColosSeUMO: coupling framework between Colosseum and SUMO")
+    parser = ArgumentParser(description="ColosSUMO: coupling framework between Colosseum and SUMO")
     parser.add_argument("--broker", help="IP address of the broker", default="127.0.0.1")
     parser.add_argument("--port", help="Port of the broker", default=12345, type=int)
     parser.add_argument("--config", help="SUMO config file")
@@ -411,33 +412,33 @@ def main():
     gui = args.gui
     test = args.test
     if test:
-        # if we run in test mode without colosseum, classes are instantiated directly by Colosseumo
+        # if we run in test mode without colosseum, classes are instantiated directly by Colossumo
         module, class_name = args.application.rsplit(".", 1)
         m = import_module(module)
         application = getattr(m, class_name)
     else:
-        # otherwise we will pass the class name to Colosseumo
+        # otherwise we will pass the class name to Colossumo
         application = args.application
     if args.params == "":
         parameters = "{}"
     else:
         with open(args.params) as params_file:
             parameters = params_file.read()
-    colosseumo = Colosseumo("sumo", broker, port, config, scenario, application, parameters,
-                            list(range(args.nodes)), gui, test)
-    colosseumo.connect_mqtt()
-    colosseumo.subscribe(COLOSSEUM_UPDATE_TOPIC)
+    colossumo = Colossumo("sumo", broker, port, config, scenario, application, parameters,
+                          list(range(args.nodes)), gui, test)
+    colossumo.connect_mqtt()
+    colossumo.subscribe(COLOSSEUM_UPDATE_TOPIC)
     attempt = 1
-    while not colosseumo.is_connected() and attempt <= 10:
+    while not colossumo.is_connected() and attempt <= 10:
         debug("Waiting to be connected to MQTT broker. Attempt {}".format(attempt))
         attempt += 1
         sleep(1)
 
-    if not colosseumo.is_connected():
+    if not colossumo.is_connected():
         error("Cannot connect to MQTT broker. Simulation will not start")
     else:
         debug("Connected to MQTT broker. Starting simulation")
-        colosseumo.run_simulation(args.time)
+        colossumo.run_simulation(args.time)
 
 
 if __name__ == "__main__":

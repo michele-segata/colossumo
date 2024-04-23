@@ -1,9 +1,14 @@
-# ColosSeUMO
+# ColosSUMO
 
 This application enables running vehicular networking simulations on the Colosseum testbed, enabling to simulate
 mobility through SUMO.
 The application exploits an MQTT broker to publish data such as vehicle position updates towards Colosseum and to
 receive data from Colosseum as well, for example, the content of a packet received through the radio interface.
+
+> [!NOTE]
+> The software is currently in its infancy. We are working on the documentation for using the framework together
+> with Colosseum. In the meanwhile, you can check the *sample scenario* and the *more realistic scenario*,
+> which can both be run without Colosseum.
 
 ## Required software
 
@@ -38,7 +43,7 @@ mosquitto -p 12345
 To start the sample scenario simply type:
 
 ```commandline
-python colosseumo.py --broker 127.0.0.1 --port 12345 --config=cfg/freeway.sumo.cfg --scenario=cacc_scenario.CaccScenario --application=application.Application --gui --params=cfg/sim_params.json --test --nodes 10 --time 60
+python colossumo.py --broker 127.0.0.1 --port 12345 --config=cfg/freeway.sumo.cfg --scenario=cacc_scenario.CaccScenario --application=application.Application --gui --params=cfg/sim_params.json --test --nodes 10 --time 60
 ```
 
 The script parameters are the following:
@@ -51,7 +56,7 @@ The script parameters are the following:
 - `--gui`: start SUMO in GUI mode
 - `--params`: json file including simulation params, which are passed to the scenario and the application
 - `--test`: enable test mode. In this mode the simulation is run without Colosseum, so applications are instantiated
-locally by ColosSeUMO instead of on Colosseum SRN nodes and communication is fake, emulated via MQTT with a 100%
+locally by ColosSUMO instead of on Colosseum SRN nodes and communication is fake, emulated via MQTT with a 100%
 delivery ratio
 - `--nodes`: how many nodes are available in Colosseum for the simulation
 - `--time`: maximum simulation time in seconds
@@ -61,7 +66,7 @@ delivery ratio
 To run a more realistic scenario but still using test mode (without Colosseum), type
 
 ```commandline
-python colosseumo.py --config=cfg/lust.sumo.cfg --scenario=lust_scenario.LustScenario --gui --application=cacc_application.CACCApplication --params=cfg/sim_params.json --test
+python colossumo.py --config=cfg/lust.sumo.cfg --scenario=lust_scenario.LustScenario --gui --application=cacc_application.CACCApplication --params=cfg/sim_params.json --test
 ```
 
 This scenario simulates a platoon of three vehicles running around the city of Luxembourg.
@@ -91,11 +96,11 @@ Finally, once you have finished using it restore the X11 auth config
 
 ## Working principle
 
-ColosSeUMO runs a SUMO simulation and sends simulation updates at each step.
+ColosSUMO runs a SUMO simulation and sends simulation updates at each step.
 Such updates include the current simulation time, the position of the nodes, etc.
 Updates are handled through messages, which are published via MQTT in json format.
 A single update is an array of messages.
-For example, ColosSeUMO can send the following update to Colosseum:
+For example, ColosSUMO can send the following update to Colosseum:
 
 ```json
 [
@@ -295,8 +300,8 @@ Direction: Colosseum to SUMO (colosseum informing about reception of a packet)
 ### Start/stop simulation
 
 Direction: Colosseum to SUMO.
-After creating vehicles in the simulation ColosSeUMO will wait for a signal to start the simulation.
-In addition, Colosseum can tell ColosSeUMO to stop the SUMO simulation.
+After creating vehicles in the simulation ColosSUMO will wait for a signal to start the simulation.
+In addition, Colosseum can tell ColosSUMO to stop the SUMO simulation.
 ```json
 {
   "type": "start_simulation",
