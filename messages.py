@@ -249,7 +249,7 @@ class APICallMessage(Message):
 
 
 class APIResponseMessage(Message):
-    """ Message sent from Colosseumo to Colosseum to return the response of a remote call
+    """ Message sent from Colossumo to Colosseum to return the response of a remote call
     """
     TYPE = "api_return"
 
